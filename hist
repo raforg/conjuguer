@@ -1,0 +1,23 @@
+#!/usr/bin/perl -w
+use strict;
+
+# Print histogram of the given column in text input
+
+use Getopt::Std;
+my %opt;
+die "usage: $0 [-c#] [-t] file...\n" unless getopts 'c:t', \%opt;
+my $col = $opt{c} || 0;
+my $do_total = exists $opt{t};
+my %hist;
+my $sum = 0;
+
+while (<>)
+{
+	chop;
+	my @f = split /\s+/;
+	++$hist{$f[$col]};
+	++$sum;
+}
+
+print "$_ $hist{$_}\n" for sort keys %hist;
+print "Total $sum\n" if $do_total;

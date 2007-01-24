@@ -1,0 +1,21 @@
+#!/usr/bin/perl -w
+use strict;
+
+my $maxkey = 0;
+my $maxval = 0;
+
+open R, 'reverse.idx' or die "Failed to open reverse.idx for reading: $!\n";
+
+while (<R>)
+{
+	chop;
+	my ($key, $val) = $_ =~ /^(\S+)\s+(\S+)$/;
+	print "$key $val\n" if substr($key, 0, 1) ne substr($val, 0, 1) && $val ne 'être' && $val ne 'avoir' && $val ne 'aller';
+	$maxkey = length $key if length $key > $maxkey;
+	$maxval = length $val if length $val > $maxval;
+}
+
+close R;
+
+print "maxkey = $maxkey\n";
+print "maxval = $maxval\n";

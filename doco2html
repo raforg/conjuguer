@@ -1,0 +1,60 @@
+#!/usr/bin/perl -w
+use strict;
+
+sub help
+{
+	print STDERR "usage: $0 file.doco file.html [title]\n";
+	exit 1;
+}
+
+help unless @ARGV >= 2;
+doco2html(@ARGV);
+
+sub doco2html
+{
+	my $src = shift;
+	my $dst = shift;
+	my $title = shift || 'Aide';
+
+	open S, $src or die "Failed to open $src: $!\n";
+	open D, "> $dst" or die "Failed to open $dst: \n";
+
+	print D "<!doctype html public \"-//W3C//DTD HTML 4.0 Transitional//EN\" \"http://www.w3.org/TR/REC-html40/loose.dtd\">\n";
+	print D "<html>\n<head>\n<title>$title</title>\n</head>\n<body>\n";
+
+	my %t = ('' => '/', '/' => '');
+	my $b = '';
+	my $i = '';
+	my $c = '';
+	my $p = 0;
+	my $t = 0;
+	my $l = '';
+
+	my $endp = sub { $l = 'p', $p = 0, print D "</p>\n" if $p };
+	my $endt = sub { $l = 't', $t = 0, print D "</table>\n" if $t };
+	my $end = sub { &$endp(); &$endt() };
+	my $newp = sub { &$end(); $p = 1; print D "<p>\n" };
+	my $newt = sub { &$end(); $t = 1; print D "<br>\n" if $l eq 't'; print D "<table border=0 cellspacing=0 cellpadding=0>\n" };
+
+	while (<S>)
+	{
+		while (/\/\//) { s/\/\//<${b}b>/; $b = $t{$b} }
+		while (/\\\\/) { s/\\\\/<${i}em>/; $i = $t{$i} }
+		while (/##/) { s/##/<${c}tt>/; $c = $t{$c} }
+		if (/^$/) { &$end(); next }
+		if (/^=head/) { &$end(); $l = 'h'; s/^=head(\d) (.*)$/<h$1>$2<\/h$1>/; print D; next }
+		if (/^\t(.*)$/) { &$newt() unless $t; s/^\t//; s/\n//; $_ = "<tr valign=top><td>&nbsp;&nbsp;&nbsp;&nbsp;</td>" . join('', map { "<td align=left>$_&nbsp;</td>" } split /\t+/, $_) . "</tr>\n"; print D; next }
+		&$newp() unless $p;
+		print D;
+	}
+
+	&$end(); print D "</body>\n</html>\n";
+
+	print STDERR "warning: unterminated <b>\n" if $b eq '/';
+	print STDERR "warning: unterminated <em>\n" if $i eq '/';
+
+	close S;
+	close D;
+}
+
+# vi:set ts=4 sw=4:

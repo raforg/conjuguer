@@ -1,0 +1,2044 @@
+#!/usr/bin/perl -Tw
+use strict;
+
+# conjuguer - http://raf.org/conjuguer/
+#
+# Copyright (C) 2003-2007 raf <raf@raf.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# or visit http://www.gnu.org/copyleft/gpl.html
+
+# Generate conjugations for all verbs in the files 'verbes' and 'conjugaisons'.
+# Acts like a command line tool, builds a website, and acts like a CGI script.
+# 20031025 raf <raf@raf.org>
+
+# No surprises, please
+$ENV{LANG} = 'C';
+
+# Define word characters for the verbfile (but not single quote)
+my $w = '-a-zàáâäèéêëìíîïòóôöùúûüç()';
+
+# Map characters to the character class of their various accented forms
+my %similar =
+(
+	'a' => '[aàäáâ]', 'à' => '[aàäáâ]', 'ä' => '[aàäáâ]', 'á' => '[aàäáâ]', 'â' => '[aàäáâ]',
+	'e' => '[eèëéê]', 'è' => '[eèëéê]', 'ë' => '[eèëéê]', 'é' => '[eèëéê]', 'ê' => '[eèëéê]',
+	'i' => '[iìïíî]', 'ì' => '[iìïíî]', 'ï' => '[iìïíî]', 'í' => '[iìïíî]', 'î' => '[iìïíî]',
+	'o' => '[oòöóô]', 'ò' => '[oòöóô]', 'ö' => '[oòöóô]', 'ó' => '[oòöóô]', 'ô' => '[oòöóô]',
+	'u' => '[uùüúû]', 'ù' => '[uùüúû]', 'ü' => '[uùüúû]', 'ú' => '[uùüúû]', 'û' => '[uùüúû]',
+	'c' => '[cç]',    'ç' => '[cç]'
+);
+
+# Map normal pronouns to reflexive pronouns
+my %pronoun =
+(
+	je => 'je me',
+	tu => 'tu te',
+	il => 'il se',
+	nous => 'nous nous',
+	vous => 'vous vous',
+	ils => 'ils se'
+);
+
+# Prefixes in the verbs file
+my @prefix = ('en', 'faire', 'laisser', 'envoyer', 'aller', 'à', 'de');
+
+# Prepositions in the verbs file
+my %preposition =
+(
+	'à' => 1,
+	'avec' => 1,
+	'contre' => 1,
+	'dans' => 1,
+	'de' => 1,
+	'dedans' => 1,
+	'en' => 1,
+	'entre' => 1,
+	'envers' => 1,
+	'par' => 1,
+	'pour' => 1,
+	'sur' => 1,
+	'vers' => 1
+);
+
+# Map all forms of avoir to their corresponding form of être
+my %etre =
+(
+	'avoir' => 'être',
+	'ayant' => 'étant',
+	'eu' => 'été',
+	'ai' => 'suis',
+	'as' => 'es',
+	'a' => 'est',
+	'avons' => 'sommes',
+	'avez' => 'êtes',
+	'ont' => 'sont',
+	'avais' => 'étais',
+	'avait' => 'était',
+	'avions' => 'étions',
+	'aviez' => 'étiez',
+	'avaient' => 'étaient',
+	'eus' => 'fus',
+	'eut' => 'fut',
+	'eûmes' => 'fûmes',
+	'eûtes' => 'fûtes',
+	'eurent' => 'furent',
+	'aurai' => 'serai',
+	'auras' => 'seras',
+	'aura' => 'sera',
+	'aurons' => 'serons',
+	'aurez' => 'serez',
+	'auront' => 'seront',
+	'aie' => 'sois',
+	'aies' => 'sois',
+	'ait' => 'soit',
+	'ayons' => 'soyons',
+	'ayez' => 'soyez',
+	'aient' => 'soient',
+	'eusse' => 'fusse',
+	'eusses' => 'fusses',
+	'eût' => 'fût',
+	'eussions' => 'fussions',
+	'eussiez' => 'fussiez',
+	'eussent' => 'fussent',
+	'aurais' => 'serais',
+	'aurait' => 'serait',
+	'aurions' => 'serions',
+	'auriez' => 'seriez',
+	'auraient' => 'seraient'
+);
+
+# Map passé composé auxillary verbs to aller for the futur proche
+my %futur_proche =
+(
+	'ai' => 'vais',
+	'as' => 'vas',
+	'a' => 'va',
+	'avons' => 'allons',
+	'avez' => 'allez',
+	'ont' => 'vont',
+	'suis' => 'vais',
+	'es' => 'vas',
+	'est' => 'va',
+	'sommes' => 'allons',
+	'êtes' => 'allez',
+	'sont' => 'vont'
+);
+
+# Map passé composé auxillary verbs to venir for the passé récent
+my %passe_recent =
+(
+	'ai' => 'viens de',
+	'as' => 'viens de',
+	'a' => 'vient de',
+	'avons' => 'venons de',
+	'avez' => 'venez de',
+	'ont' => 'viennent de',
+	'suis' => 'viens de',
+	'es' => 'viens de',
+	'est' => 'vient de',
+	'sommes' => 'venons de',
+	'êtes' => 'venez de',
+	'sont' => 'viennent de'
+);
+
+# Map word ordering for pseudo tenses
+my %pseudo_word_order =
+(
+	'je me vais' => 'je vais me',
+	'tu te vas' => 'tu vas te',
+	'il se va' => 'il va se',
+	'nous nous allons' => 'nous allons nous',
+	'vous vous allez' => 'vous allez vous',
+	'ils se vont' => 'ils vont se',
+
+	'je me en vais' => 'je vais me en',
+	'tu te en vas' => 'tu vas te en',
+	'il se en va' => 'il va se en',
+	'nous nous en allons' => 'nous allons nous en',
+	'vous vous en allez' => 'vous allez vous en',
+	'ils se en vont' => 'ils vont se en',
+
+	'je me viens de' => 'je viens de me',
+	'tu te viens de' => 'tu viens de te',
+	'il se vient de' => 'il vient de se',
+	'nous nous venons de' => 'nous venons de nous',
+	'vous vous venez de' => 'vous venez de vous',
+	'ils se viennent de' => 'ils viennent de se',
+
+	'je me en viens de' => 'je viens de me en',
+	'tu te en viens de' => 'tu viens de te en',
+	'il se en vient de' => 'il vient de se en',
+	'nous nous en venons de' => 'nous venons de nous en',
+	'vous vous en venez de' => 'vous venez de vous en',
+	'ils se en viennent de' => 'ils viennent de se en',
+
+	'je me ai eu' => 'je ai eu me',
+	'tu te as eu' => 'tu as eu te',
+	'il se a eu' => 'il a eu se',
+	'nous nous avons eu' => 'nous avons eu nous',
+	'vous vous avez eu' => 'vous avez eu vous',
+	'ils se ont eu' => 'ils ont eu se',
+
+	'je me ai été' => 'je ai été me',
+	'tu te as été' => 'tu as été te',
+	'il se a été' => 'il a été se',
+	'nous nous avons été' => 'nous avons été nous',
+	'vous vous avez été' => 'vous avez été vous',
+	'ils se ont été' => 'ils ont été se',
+
+	'je me en ai eu' => 'je ai eu me en',
+	'tu te en as eu' => 'tu as eu te en',
+	'il se en a eu' => 'il a eu se en',
+	'nous nous en avons eu' => 'nous avons eu nous en',
+	'vous vous en avez eu' => 'vous avez eu vous en',
+	'ils se en ont eu' => 'ils ont eu se en',
+
+	'je me en ai été' => 'je ai été me en',
+	'tu te en as été' => 'tu as été te en',
+	'il se en a été' => 'il a été se en',
+	'nous nous en avons été' => 'nous avons été nous en',
+	'vous vous en avez été' => 'vous avez été vous en',
+	'ils se en ont été' => 'ils ont été se en',
+
+	'je en vais' => 'je vais en',
+	'tu en vas' => 'tu vas en',
+	'il en va' => 'il va en',
+	'nous en allons' => 'nous allons en',
+	'vous en allez' => 'vous allez en',
+	'ils en vont' => 'ils vont en',
+
+	'je en viens de' => 'je viens de en',
+	'tu en viens de' => 'tu viens de en',
+	'il en vient de' => 'il vient de en',
+	'nous en venons de' => 'nous venons de en',
+	'vous en venez de' => 'vous venez de en',
+	'ils en viennent de' => 'ils viennent de en',
+
+	'je en ai eu' => 'je ai eu en',
+	'tu en as eu' => 'tu as eu en',
+	'il en a eu' => 'il a eu en',
+	'nous en avons eu' => 'nous avons eu en',
+	'vous en avez eu' => 'vous avez eu en',
+	'ils en ont eu' => 'ils ont eu en',
+
+	'je en ai été' => 'je ai été en',
+	'tu en as été' => 'tu as été en',
+	'il en a été' => 'il a été en',
+	'nous en avons été' => 'nous avons été en',
+	'vous en avez été' => 'vous avez été en',
+	'ils en ont été' => 'ils ont été en'
+);
+
+# Map passé composé auxillary verbs for the passe surcomposé
+my %passe_surcompose =
+(
+	'ai' => 'ai eu',
+	'as' => 'as eu',
+	'a' => 'a eu',
+	'avons' => 'avons eu',
+	'avez' => 'avez eu',
+	'ont' => 'ont eu',
+	'suis' => 'ai été',
+	'es' => 'as été',
+	'est' => 'a été',
+	'sommes' => 'avons été',
+	'êtes' => 'avez été',
+	'sont' => 'ont été'
+);
+
+# Pseudo auxilliary-verbs (need to guard them against stem replacement)
+my @pseudo_aux = ('vais', 'vas', 'va', 'vont', 'viens', 'vient', 'venons', 'venez', 'viennent', 'de');
+
+# Names of moods and tenses (let perl check the spelling)
+my $infinitif = 'Infinitif';
+my $participe = 'Participe';
+my $indicatif = 'Indicatif';
+my $subjonctif = 'Subjonctif';
+my $imperatif = 'Impératif';
+my $conditionnel = 'Conditionnel';
+my $present = 'Présent';
+my $passe = 'Passé';
+my $imparfait = 'Imparfait';
+my $futur = 'Futur';
+my $plus_que_parfait = 'Plus-que-parfait';
+my $simple = 'simple';
+my $compose = 'composé';
+my $surcompose = 'surcomposé';
+my $anterieur = 'antérieur';
+my $proche = 'proche';
+my $recent = 'récent';
+my $premiere = 'première';
+my $deuxieme = 'deuxième';
+my $forme = 'forme';
+my $passe_compose = "$passe $compose";
+my $passe_surcompose = "$passe $surcompose";
+my $passe_simple = "$passe $simple";
+my $passe_anterieur = "$passe $anterieur";
+my $futur_simple = "$futur $simple";
+my $futur_anterieur = "$futur $anterieur";
+my $futur_proche = "$futur $proche";
+my $passe_recent = "$passe $recent";
+my $passe_premiere_forme = "$passe $premiere $forme";
+my $passe_deuxieme_forme = "$passe $deuxieme $forme";
+my $infinitif_present = "$infinitif $present";
+my $infinitif_passe = "$infinitif $passe";
+my $participe_present = "$participe $present";
+my $participe_passe = "$participe $passe";
+my $indicatif_present = "$indicatif $present";
+my $indicatif_passe_compose = "$indicatif $passe_compose";
+my $indicatif_passe_surcompose = "$indicatif $passe_surcompose";
+my $indicatif_imparfait = "$indicatif $imparfait";
+my $indicatif_plus_que_parfait = "$indicatif $plus_que_parfait";
+my $indicatif_passe_simple = "$indicatif $passe_simple";
+my $indicatif_passe_anterieur = "$indicatif $passe_anterieur";
+my $indicatif_futur_simple = "$indicatif $futur_simple";
+my $indicatif_futur_anterieur = "$indicatif $futur_anterieur";
+my $indicatif_futur_proche = "$indicatif $futur_proche";
+my $indicatif_passe_recent = "$indicatif $passe_recent";
+my $subjonctif_present = "$subjonctif $present";
+my $subjonctif_passe = "$subjonctif $passe";
+my $subjonctif_imparfait = "$subjonctif $imparfait";
+my $subjonctif_plus_que_parfait = "$subjonctif $plus_que_parfait";
+my $imperatif_present = "$imperatif $present";
+my $imperatif_passe = "$imperatif $passe";
+my $conditionnel_present = "$conditionnel $present";
+my $conditionnel_passe_premiere_forme = "$conditionnel $passe_premiere_forme";
+my $conditionnel_passe_deuxieme_forme = "$conditionnel $passe_deuxieme_forme";
+
+# Map -t option arguments to tense names
+my %tense =
+(
+	infpres => $infinitif_present,
+	infpas => $infinitif_passe,
+	partpres => $participe_present,
+	partpas => $participe_passe,
+	indpres => $indicatif_present,
+	indpascmp => $indicatif_passe_compose,
+	indimp => $indicatif_imparfait,
+	indpqp => $indicatif_plus_que_parfait,
+	indpas => $indicatif_passe_simple,
+	indpasant => $indicatif_passe_anterieur,
+	indfut => $indicatif_futur_simple,
+	indfutant => $indicatif_futur_anterieur,
+	indfutp => $indicatif_futur_proche,
+	indpasp => $indicatif_passe_recent,
+	indpassurcmp => $indicatif_passe_surcompose,
+	subjpres => $subjonctif_present,
+	subjpas => $subjonctif_passe,
+	subjimp => $subjonctif_imparfait,
+	subjpqp => $subjonctif_plus_que_parfait,
+	imppres => $imperatif_present,
+	imppas => $imperatif_passe,
+	cndpres => $conditionnel_present,
+	cndpas1 => $conditionnel_passe_premiere_forme,
+	cndpas2 => $conditionnel_passe_deuxieme_forme
+);
+
+# Map only tag names to tense names
+my %only =
+(
+	inf => [$infinitif_present],
+	pp => [$participe_passe, $infinitif_passe],
+	pres => [$indicatif_present],
+	imp => [$indicatif_imparfait],
+	past => [$indicatif_passe_simple],
+	fut => [$indicatif_futur_simple],
+	cond => [$conditionnel_present],
+	comp => [$indicatif_passe_compose, $indicatif_plus_que_parfait, $indicatif_passe_anterieur, $indicatif_futur_anterieur, $indicatif_futur_proche, $indicatif_passe_recent, $indicatif_passe_surcompose, $subjonctif_passe, $subjonctif_plus_que_parfait, $conditionnel_passe_premiere_forme, $conditionnel_passe_deuxieme_forme]
+);
+
+# List of all tenses
+my @all_tenses = ($infinitif_present, $infinitif_passe, $participe_present, $participe_passe, $indicatif_present, $indicatif_passe_compose, $indicatif_imparfait, $indicatif_plus_que_parfait, $indicatif_passe_simple, $indicatif_passe_anterieur, $indicatif_futur_simple, $indicatif_futur_anterieur, $indicatif_futur_proche, $indicatif_passe_recent, $indicatif_passe_surcompose, $subjonctif_present, $subjonctif_passe, $subjonctif_imparfait, $subjonctif_plus_que_parfait, $imperatif_present, $imperatif_passe, $conditionnel_present, $conditionnel_passe_premiere_forme, $conditionnel_passe_deuxieme_forme);
+
+my %conj; # Hash conjugations by index
+my @verb; # List of verbs to conjugate
+my %verb; # Hash of verbs to avoid duplicates
+my %ends; # Hash conjugation indexes by verb endings (for guessing)
+my %hist; # Histogram of verbs by first letter (for curiosity)
+my %phst; # Histogram of prepositions found (for curiosity)
+my %prep; # List of verbs by preposition
+my %stem; # List of stems by conjugation index
+my @link; # List of links for the website index page
+my %ridx; # Reverse index (maps verb forms to verb objects)
+
+# The name of the conjugations file
+my $conjfile = filespec($ENV{CONJUGUER_CONJUGASIONS_FILE}) || 'conjugaisons';
+# The name of the verbs file
+my $verbfile = filespec($ENV{CONJUGUER_VERBES_FILE}) || 'verbes';
+# The name of the reverse lookup index file
+my $ridxfile = filespec($ENV{CONJUGUER_RINDEX_FILE}) || 'reverse.idx';
+# The name of the output directory for the website
+my $webdir = filespec($ENV{CONJUGUER_WEBDIR}) || '.';
+# The CGI URI for website output
+my $uri = $ENV{CONJUGUER_CGI} || '/cgi-bin/conjuguer';
+
+sub help
+{
+	print "usage: $0 [options] [verbe...]\n";
+	print "options:\n";
+	print "  -h       - Print this message then exit\n";
+	print "  -f #     - Force a particular conjugation index\n";
+	print "  -t tense - Print only these tenses (comma separated)\n";
+	print "  -r       - Given any verb form, show its infinitive's conjugation\n";
+	print "  -c fname - Override conjugation file ($conjfile)\n";
+	print "  -v fname - Override verb file ($verbfile)\n";
+	print "  -x fname - Override reverse lookup index file ($ridxfile)\n";
+	print "  -R       - Build the reverse lookup index file (needed before -r)\n";
+	print "  -W       - Generate a website rather than a text file\n";
+	print "  -D dir   - Override output directory for website ($webdir)\n";
+	print "  -I       - Only generate the index pages for the website\n";
+	print "  -U uri   - Override CGI URI ($uri)\n";
+	print "  -C       - Generate CGI output (used internally)\n";
+	print "  -1       - Print a verb histogram to stderr (for curiosity)\n";
+	print "  -2       - Print a conjugation histogram to stderr (for curiosity)\n";
+	print "  -3       - Print a preposition histogram to stderr (for curiosity)\n";
+	print "  -4       - Print stems from conjugation file to stderr (for curiosity)\n";
+	print "\n";
+	print "By default, prints conjugations of all verbs in the verb file.\n";
+	print "If any verbs are supplied on the command line, only their\n";
+	print "conjugations are printed. See the conjugations file for the list\n";
+	print "of valid conjugation indexes.\n";
+	print "\n";
+	print "The -t argument can be: infpres infpas partpres partpas indpres\n";
+	print "indpascmp indimp indpqp indpas indpasant indfut indfutant indfutp\n";
+	print "indpasp indpassurcmp subjpres subjpas subjimp subjpqp imppres imppas\n";
+	print "cndpres cndpas1 cndpas2.\n";
+	print "\n";
+	print "This program can also be used to identify the infinitive(s) that\n";
+	print "give rise to a given verb form using the -r option. For example,\n";
+	print "\"conjuguer -r suis\" will print the conjugations of the verbs\n";
+	print "être and suivre.\n";
+	print "\n";
+	print "This program can also be used as a CGI script to guess a verb's\n";
+	print "conjugation. The CGI parameters are:\n";
+	print "  verb     - The verb to conjugate (normal or reflexive)\n";
+	print "  index    - Force a particular conjugation index to be used\n";
+	print "  reverse  - Reverse lookup of any verb form\n";
+	print "\n";
+	exit;
+}
+
+my %dumb =
+(
+	'a"' => 'ä', "a'"  => 'á', 'a`'  => 'à', 'a^'  => 'â',
+	'e"' => 'ë', "e'"  => 'é', 'e`'  => 'è', 'e^'  => 'ê',
+	'i"' => 'ï', "i'"  => 'í', 'i`'  => 'ì', 'i^'  => 'î',
+	'o"' => 'ö', "o'"  => 'ó', 'o`'  => 'ò', 'o^'  => 'ô',
+	'u"' => 'ü', "u'"  => 'ú', 'u`'  => 'ù', 'u^'  => 'û',
+	'c,' => 'ç'
+);
+
+if (wantcgi())
+{
+	use CGI;
+	my $cgi = new CGI;
+	my $verb = $cgi->param('verb');
+	my $reverse = $cgi->param('reverse');
+	my $index = $cgi->param('index') unless $reverse;
+	fatal_cgi() unless defined $verb && $verb ne '';
+	$verb = llc($verb);
+	$verb =~ s/(@{[join '|', map { quotemeta($_) } keys %dumb]})/$dumb{$1}/ig;
+	@ARGV = ('-C', $verb);
+	unshift @ARGV, '-r' if defined $reverse;
+	unshift @ARGV, '-f', $index if defined $index && $index ne '';
+}
+
+use Getopt::Std;
+my %opt;
+help() unless getopts('hf:t:rc:v:x:RWD:IU:C1234', \%opt);
+help() if exists $opt{h};
+$conjfile = $opt{c} if exists $opt{c};
+$verbfile = $opt{v} if exists $opt{v};
+$ridxfile = $opt{x} if exists $opt{x};
+$webdir = $opt{D} if exists $opt{D};
+$uri = $opt{U} if exists $opt{U};
+my $force = $opt{f} if exists $opt{f};
+my $do_reverse = exists $opt{r};
+my $do_rindex = exists $opt{R};
+my $do_website = exists $opt{W};
+my $index_only = exists $opt{I};
+my $do_verb_hist = exists $opt{1};
+my $do_conj_hist = exists $opt{2};
+my $do_prep_hist = exists $opt{3};
+my $do_stem_list = exists $opt{4};
+my $do_cgi = exists $opt{C};
+my @target_tense = map { $tense{$_} or die "Illegal -t argument: '$_'\n" } split /[, ]+/, $opt{t} if exists $opt{t};
+die "Illegal -D argument: '$webdir'\n" unless $webdir =~ /^([-_a-zA-Z0-9\/.]+)$/;
+$webdir = $1; mkdir($webdir) unless -d $webdir;
+die "Invalid -D argument: '$webdir' (Must be a writable directory)\n" if $do_website && (! -d $webdir || ! -w $webdir);
+die "Missing verb (required by -r)\n" if $do_reverse && !@ARGV;
+die "Invalid verb: @ARGV (incompatible with -R)\n" if $do_rindex && @ARGV;
+die "Incompatible options: -r and -f\n" if $do_reverse && defined $force;
+my $rindex_uptodate = $do_rindex && -r $ridxfile && -s $ridxfile && -M $ridxfile < -M $verbfile && -M $ridxfile < -M $conjfile;
+print(STDERR "$ridxfile is already up-to-date\n"), exit 0 if $rindex_uptodate && !$do_website;
+$do_rindex = 0 if $rindex_uptodate && $do_website;
+
+# Only conjugate selected verbs?
+my @target = sort { normalize($a) cmp normalize($b) } @ARGV;
+my @rtarget = @target;
+
+# Load the data then conjugate the verbs
+load_rindex() if $do_reverse;
+load_verbs();
+load_conjugations();
+do { output($_) for (0..$#verb) } unless $index_only;
+reverse_index() if $do_rindex;
+output_webindex() if $do_website;
+print_verb_hist() if $do_verb_hist;
+print_conj_hist() if $do_conj_hist;
+print_prep_hist() if $do_prep_hist;
+print_stem_list() if $do_stem_list;
+exit 0;
+
+# Load the conjugations file
+sub load_conjugations
+{
+	my $data;
+	my $mood;
+	my $tense;
+	my $line = 0;
+
+	open CONJ, $conjfile or die "Failed to open $conjfile: $!\n";
+
+	my $must_guess = 0;
+	for (@verb) { $must_guess = 1 if $_->{index} eq '?' }
+
+	# Seek to the conjugation we need if we know it (for faster CGI)
+	my $v = 0;
+	approach: approach_conjugation(\*CONJ, $verb[$v]->{index}) if @target && !$must_guess;
+
+	while (<CONJ>)
+	{
+		++$line;
+		s/\s*#.*$//;
+		next if /^$/;
+		chop;
+
+		if (/^CONJUGATION\s+(\d+\w*)\s+(.*)$/)
+		{
+			$stem{$data->{index}} = "$data->{verb} - " . stem($data) if defined $data && $do_stem_list;
+			$conj{$data->{index}} = $data if defined $data;
+
+			# Stop reading if we have all that we need (for faster CGI)
+			last if @target && !$must_guess && $1 ne $verb[$v]->{index};
+			# When guessing, stop after last useful one (they come first)
+			last if @target && $must_guess && index($2, 'verbs ending in') == -1;
+
+			$data = {};
+			$data->{count} = 0;
+			$data->{index} = $1;
+			$data->{verb} = $2;
+
+			# Remember the verb endings this conjugation is for (for guessing)
+			my ($notes) = $data->{verb} =~ /verbs ending in (.*)\]$/;
+			$data->{verb} =~ s/\s*[[(].*[)\]]$//;
+
+			if (defined $notes)
+			{
+				$notes =~ s/[\/:].*//;
+				push(@{$ends{$_}}, $data->{index}) for (map { s/^-//; $_ } split(/, /, $notes));
+				$data->{notes} = $notes;
+			}
+		}
+		elsif (/^(INFINITIF|PARTICIPE|INDICATIF|SUBJONCTIF|IMPÉRATIF|CONDITIONNEL)$/)
+		{
+			$mood = ucfirst(llc($1));
+		}
+		elsif (/^($present|$passe|$passe_compose|$imparfait|$plus_que_parfait|$passe_simple|$passe_anterieur|$futur_simple|$futur_anterieur|$passe_premiere_forme|$passe_deuxieme_forme)$/)
+		{
+			$tense = $1;
+		}
+		elsif (/^\t(.*)/)
+		{
+			my $key = "$mood $tense";
+			$data->{$key} = '' unless defined $data->{$key};
+			$data->{$key} .= "$1\n";
+		}
+		else
+		{
+			die "Invalid data: [$conjfile:$line]: '$_'\n";
+		}
+	}
+
+	$stem{$data->{index}} = "$data->{verb} - " . stem($data) if defined $data && $do_stem_list;
+	$conj{$data->{index}} = $data if defined $data;
+
+	++$v, goto approach if @target && !$must_guess && $v < $#verb;
+
+	close CONJ;
+}
+
+# Load the verbs file
+sub load_verbs
+{
+	my $line = 0;
+
+	open VERB, $verbfile or die "Failed to open $verbfile: $!\n";
+
+	# Seek to near the verb we want (for faster CGI)
+	my $t = 0;
+	approach:
+	approach_verb(\*VERB, $target[$t]) if @target;
+
+	while (<VERB>)
+	{
+		++$line;
+		s/\s*#.*$//;
+		next if /^$/;
+		my $common = /^\*/;  # '*' denotes a common verb
+		s/^\*//;
+		my $aspirate = /^!/; # '!' denotes an aspirate 'h'
+		s/^!//;
+		chop;
+
+		my ($verb, $trans, $index) = $_ =~ /^\s*(.*)\s+=\s+(.*)\s+=\s+(.+)\s*$/ or die "Invalid data: [$verbfile:$line]: $_\n";
+		next if $index =~ /^D/; # Ignore defunct verbs
+
+		# Parse the verb entry
+		my $v = {};
+		$v->{defunct} = 1, $index = '?' if $index eq 'D';
+		$v->{verb} = $verb;
+		$v->{translation} = $trans;
+		$v->{index} = $v->{indexorig} = $index;
+		$v->{aspirate} = $aspirate;
+		$v->{common} = $common;
+
+		if ($v->{index} =~ /\s/)
+		{
+			my @hints = split /\s+/, $v->{index};
+			$v->{index} = $v->{indexorig} = shift @hints;
+
+			for (@hints)
+			{
+				$v->{etre} = 1, next if $_ eq '{être}';
+				$v->{both} = 1, next if $_ eq '{both}';
+				$v->{impersonal} = 1, next if $_ eq '{il}';
+				$v->{impersonals} = 1, next if $_ eq '{ils}';
+				$v->{archaic} = 1, next if $_ eq '{archaic}';
+				$v->{defunct} = 1, next if $_ eq '{defunct}';
+				$v->{plural} = 1, next if $_ eq '{plural}';
+				$v->{noppf} = 1, next if $_ eq '{noppf}';
+				$v->{inv} = 1, next if $_ eq '{inv}';
+				$v->{dup} = 1, next if $_ eq '{dup}';
+				$v->{dative} = 1, next if $_ eq '{dative}';
+				$v->{only} = [map { (exists $only{$_}) ? @{$only{$_}} : die "Invalid data: [$verbfile:$line]: $_\n" } split /,/, $1], next if /^{only:([^}]+)}/;
+			}
+		}
+
+		$v->{reflexive} = ($v->{verb} =~ /^(?:s'|se )/) ? 1 : 0;
+		$v->{verb} =~ s/^(?:s'|se )//;
+		$v->{prefix} = ($v->{verb} =~ /^(@{[join '|', @prefix]})\s+[$w]{2}/) ? $1 : '';
+		$v->{verb} =~ s/^(@{[join '|', @prefix]})\s+(?=[$w]{2})//;
+		($v->{preposition}) = $v->{verb} =~ /\s+(.+)$/;
+		$v->{verb} =~ s/\s+.*$//;
+		$v->{dative} = 1 if !$v->{dative} && defined $v->{preposition} && $v->{preposition} =~ /à/;
+
+		if (defined $v->{preposition})
+		{
+			++$phst{$v->{preposition}};
+
+			for my $prep (map { s/\s.*$//; $_ } split /\//, $v->{preposition})
+			{
+				$prep =~ s/^du$/de/;
+				$prep = 'direct' unless exists $preposition{$prep};
+				$prep = 'etc' unless $prep =~ /^(?:à|de|direct)$/;
+				$prep{$prep} = [] unless exists $prep{$prep};
+				push @{$prep{$prep}}, $v unless $v->{dup};
+			}
+		}
+		else
+		{
+			$prep{direct} = [] unless exists $prep{direct};
+			push @{$prep{direct}}, $v unless $v->{dup};
+		}
+
+		die "Error in $verbfile, line $line: '$v->{verb}' (unexpected space)\n" if $v->{verb} =~ /\s+/;
+
+		my $d = $verb[$#verb];
+
+		unless (@target || $do_cgi)
+		{
+			print STDERR "warning: $d->{verb} comes before $v->{verb}\n" if defined $d && order($d->{verb}, $v->{verb}) > 0;
+			sub nonotes { my $t = shift; $t =~ s/\s*[{(].+[)}]\s*//g; $t; }
+			my %notook = (devoir => 1, falloir => 1, partir => 1, 'préférer' => 1);
+			print STDERR "warning: $v->{verb}: '$_' does not start with 'to'\n"
+				for (grep { !/^(?:«|to )/ && !exists $notook{$v->{verb}}} split /,\s*/, nonotes($v->{translation}));
+		}
+
+		# Match command line argument (stop reading asap for faster CGI)
+		my $match = member($verb, @target) || member($v->{verb}, @target);
+		last if @target == 1 && ((@verb && !$match) || !$match && too_late($target[0], $v->{verb}));
+		last if @target && !$match && too_late($target[$t], $v->{verb});
+		next if @target && !$match;
+		next if !@target && $v->{dup};
+
+		my $verbid = $v->{index} . '-' . ($v->{reflexive} ? 'se-' : '') . ($v->{prefix} ? "$v->{prefix}-" : '') . $v->{verb} . ($v->{preposition} ? "-$v->{preposition}" : '');
+		next if @target && exists $verb{$verbid};
+
+		# Override the known or guessed conjugation index
+		$v->{index} = $force, $v->{forced} = 1 if defined $force;
+
+		# Add as a variation of the previous verb, or as a new verb
+		if (defined $d && $v->{verb} eq $d->{verb} && $v->{reflexive} == $d->{reflexive} && $v->{prefix} eq $d->{prefix} && $v->{index} eq $d->{index})
+		{
+			$d = $d->{variation} while defined $d->{variation};
+			$d->{variation} = $v;
+		}
+		else
+		{
+			$v->{primary} = 1;
+			$verb{$verbid} = 1;
+			push @verb, $v;
+			++$hist{normalize(substr($v->{verb}, 0, 1))};
+		}
+	}
+
+	++$t, goto approach if @target && $t < $#target;
+
+	close VERB;
+
+	# If targets were given but not found, force it to guess
+	target: for (@target)
+	{
+		my $tmp = $_;
+		$tmp =~ s/^(?:s'|se )//;
+		$tmp =~ s/-//;
+		for (map { $_->{verb} } @verb) { next target if member($_, $tmp) }
+
+		my $v = {};
+		$v->{verb} = $_;
+		$v->{translation} = 'pas de traduction';
+		$v->{indexorig} = '?';
+		$v->{index} = (defined $force) ? $force : $v->{indexorig};
+		$v->{forced} = defined $force;
+		$v->{aspirate} = 0;
+		$v->{common} = 0;
+		$v->{reflexive} = ($v->{verb} =~ /^(?:s'|se )/) ? 1 : 0;
+		$v->{verb} =~ s/^(?:s'|se )//;
+		$v->{prefix} = ($v->{verb} =~ /^(@{[join '|', @prefix]})\s+[$w]{2}/) ? $1 : '';
+		$v->{verb} =~ s/^(@{[join '|', @prefix]})\s+(?=[$w]{2})//;
+		($v->{preposition}) = $v->{verb} =~ /\s+(.+)$/;
+		$v->{verb} =~ s/\s+.*$//;
+		$v->{primary} = 1;
+		push @verb, $v;
+	}
+}
+
+# Have we already gone past where the verb we want should be?
+sub too_late
+{
+	my $target = shift;
+	my $verb = shift;
+
+	$target =~ s/^(?:s'|se )//;
+
+	return order($verb, $target) > 0;
+}
+
+# Set the conjugation file position closer to the target via an index file
+sub approach_conjugation
+{
+	my $fh = shift;
+	my $target = shift;
+
+	build_conjugation_index($fh) unless -r "$conjfile.idx" && -M "$conjfile.idx" < -M $conjfile;
+
+	open C, "$conjfile.idx" or return;
+
+	while (<C>)
+	{
+		my ($key, $pos) = $_ =~ /^(\d+[a-z]?) (\d+)$/;
+		seek($fh, $pos, 0), last if $key eq $target;
+	}
+
+	close C;
+}
+
+# Build an index file for the conjugation file
+sub build_conjugation_index
+{
+	my $fh = shift;
+
+	open C, "> $conjfile.idx" or return;
+	my $prev = '';
+
+	for (my $pos = tell($fh); <$fh>; $pos = tell($fh))
+	{
+		next unless /^CONJUGATION (\d+[a-z]?)/;
+		my $key = $1;
+		print(C "$key $pos\n"), $prev = $key if $key ne $prev;
+	}
+
+	close C;
+	seek($fh, 0, 0);
+}
+
+# Set the verb file position closer to the target via an index file
+sub approach_verb
+{
+	my $fh = shift;
+	my $target = shift;
+
+	build_verb_index($fh) unless -r "$verbfile.idx" && -M "$verbfile.idx" < -M $verbfile;
+
+	open I, "$verbfile.idx" or return;
+	$target =~ s/^(?:s'|se )//;
+	$target =~ s/[()-]//g;
+	$target = normalize(substr($target, 0, 4));
+	my $sz = 4 + 1 + 6 + 1;
+	my $items = (-s "$verbfile.idx") / $sz;
+	my $max = $items - 1;
+	my $min = 0;
+	my $found = 0;
+
+	while ($min <= $max)
+	{
+		my $mid = ($min + $max) >> 1;
+		seek(I, $mid * $sz, 0) or last;
+		my ($key, $pos) = <I> =~ /^(.{4})\s+(\d+)$/ or last;
+		++$found, seek($fh, $pos, 0), last if $target eq $key;
+		$max = $mid - 1, next if ($target cmp $key) < 0;
+		$min = $mid + 1;
+	}
+
+	seek($fh, 0, 2) unless $found;
+
+	close I;
+}
+
+# Build an index file for the verb file
+sub build_verb_index
+{
+	my $fh = shift;
+
+	open I, "> $verbfile.idx" or return;
+	my $prev = '';
+
+	for (my $pos = tell($fh); <$fh>; $pos = tell($fh))
+	{
+		s/[()*!-]//g;
+		s/^(?:s'|se )//;
+		s/^(@{[join '|', @prefix]})\s+(?=[$w]{2})//;
+		my ($key) = $_ =~ /^(\S{4})/;
+		$key = normalize($key);
+		print(I sprintf("%4s %6d\n", $key, $pos)), $prev = $key if $key ne $prev;
+	}
+
+	close I;
+	seek($fh, 0, 0);
+}
+
+# Return all possible conjugations of a verb or a list of guesses
+sub conjugation
+{
+	my $v = shift;
+	my $c = $conj{$v->{index}};
+	my @guess = guess($v);
+	my $guess = $guess[0] || 'unknown';
+
+	if (defined $c)
+	{
+		# Do the last 2 characters of the verb and the model match?
+		if (substr($v->{verb}, length($v->{verb}) - 2) ne substr($c->{verb}, length($c->{verb}) - 2))
+		{
+			print STDERR "error: Mismatch between verb and conjugation ($v->{index} $c->{verb} versus $v->{verb})\n" unless $do_cgi;
+			return ();
+		}
+
+		# If we had guessed, would we have guessed correctly?
+		unless (@target || $do_cgi)
+		{
+			if (!member($v->{index}, @guess) && $guess ne 'unknown' && $v->{index} !~ /^(?:1|6|19)$/ && $v->{verb} !~ /$conj{$v->{index}}->{verb}$/ && $c->{index} !~ /^$guess/)
+			{
+				print STDERR
+				(
+					"warning: $v->{verb} looks like ",
+					join(' or ', map { "$_ " . (defined $conj{$_}->{notes} ? "($conj{$_}->{notes})" : "<$conj{$_}->{verb}>") } @guess),
+					" but is $v->{index} ",
+					(defined $conj{$v->{index}}->{notes} ? "($conj{$v->{index}}->{notes})" : "<$conj{$v->{index}}->{verb}>"),
+					"\n"
+				);
+			}
+		}
+
+		# Return one conjugation for avoir and another for être (être first)
+		return (conjugate($v, $c, 0, 1), conjugate($v, $c, 0, 0)) if $v->{etre} && $v->{both};
+		# Return one conjugation for avoir and another for être (avoir first)
+		return (conjugate($v, $c, 0, 0), conjugate($v, $c, 0, 1)) if $v->{both};
+		# Return the conjugation listed
+		return (conjugate($v, $c, 0, $v->{etre}));
+	}
+
+	# Check for index typos
+	if ($v->{index} ne '?')
+	{
+		print STDERR "error: Non-existant conjugation index ($v->{verb}): $v->{index} (looks like ", join(' or ', map { "$_ " . (defined $conj{$_}->{notes} ? "($conj{$_}->{notes})" : "<$conj{$_}->{verb}>") } @guess), ")\n" unless $do_cgi;
+		return ();
+	}
+
+	# It's not listed, we have to make guesses
+	my @c = map {conjugate($v, $conj{$_}, 1, 0)} guess($v);
+	print STDERR "error: Failed to find a conjugation for '$v->{verb}'\n" unless @c || $do_cgi;
+	return @c;
+}
+
+# Conjugate a verb and return a new conjugation
+
+# Note: This is mostly a matter of making a copy of the verb's conjugation
+# model and replacing the stem of the model verb with the stem of the verb
+# in question but there is more to it than that. Je followed by a vowel is
+# contracted. Verb forms in some tenses of some conjugations affect how
+# certain characters are accented (e.g. 'é' becomes 'è', 'c' becomes 'ç').
+# Of course, these affects must be applied to the stem of the verb in
+# question. Also, pronouns need to be inserted before reflexive verbs.
+# And sometimes 'en' get involved. And on it goes. So it gets quite funky.
+sub conjugate
+{
+	my $v = shift;
+	my $c = shift;
+	my $guess = shift;
+	my $etre = shift;
+
+	my $orig_stem = stem($c);
+	my $orig_stem_pattern = denormalise($orig_stem);
+	my $new_stem = substr($v->{verb}, 0, length($v->{verb}) - (length($c->{verb}) - length($orig_stem)));
+	my $new_stem_pattern = denormalise($new_stem) if $v->{verb} =~ /^h/ && !$v->{aspirate};
+
+	my $r = {};
+	$r->{guessed} = $guess;
+	$r->{forced} = $v->{forced};
+	$r->{verb} = $v->{verb};
+	$r->{etre} = $etre;
+	$r->{prefix} = $v->{prefix};
+	$r->{reflexive} = $v->{reflexive};
+	$r->{impersonal} = $v->{impersonal};
+	$r->{impersonals} = $v->{impersonals};
+	$r->{preposition} = $v->{preposition};
+	$r->{stem_pattern} = $new_stem_pattern;
+	$r->{indexorig} = $v->{indexorig};
+	$r->{index} = $v->{index};
+	$r->{plural} = $v->{plural};
+	$r->{dative} = $v->{dative};
+	$r->{noppf} = $v->{noppf};
+	$r->{inv} = $v->{inv};
+	$r->{only} = $v->{only} if exists $v->{only};
+
+	generate_pseudo($c);
+
+	for (keys %$c)
+	{
+		$r->{$_} = $c->{$_};
+		next if /index/;
+		# Expand contractions
+		$r->{$_} =~ s/j'/je /mg;
+		# Replace model stem with actual stem
+		$r->{$_} =~ s/(?<![$w])(?!(?:@{[join '|', keys %pronoun, @pseudo_aux]})[^$w])($orig_stem_pattern)/accentuate($c, $orig_stem, $new_stem, $1)/emg;
+		# Only include 3rd person singular (or s+p) for impersonal verbs
+		impersonal($r, $_) if $r->{impersonal} || $r->{impersonals};
+		# Remove past participe feminin when required
+		$r->{$_} =~ s/, [$w]+$//mg if $r->{noppf} && $_ eq $participe_passe;
+		# Insert pronouns for reflexive verbs (and use être)
+		etre($r, $_), reflexive($r, $_) if exists $r->{$_} && $r->{reflexive};
+		# Insert the prefix 'en' if the verb is not reflexive
+		en($r, $_) if exists $r->{$_} && $r->{prefix} eq 'en' && !$r->{reflexive};
+		# Use être as the auxilliary if needed
+		etre($r, $_) if exists $r->{$_} && $r->{etre};
+		# Remove singular forms if only plural (e.g. s'entre-tuer)
+		plural($r, $_) if exists $r->{$_} && $r->{plural};
+		# Remove tenses according to {only:...} hints
+		only($r, $_) if exists $r->{$_} && exists $r->{only};
+		# Perform contractions
+		$r->{$_} = contraction($r->{$_}, $new_stem_pattern) if exists $r->{$_};
+	}
+
+	++$c->{count};
+
+	return $r;
+}
+
+# Generate the futur proche, passé récent and passé surcomposé pseudo tenses
+sub generate_pseudo
+{
+	my $c = shift;
+
+	return if exists $c->{$indicatif_futur_proche};
+	return unless defined $c->{$indicatif_passe_compose};
+	my ($pp) = $c->{$participe_passe} =~ /^([$w]+)/;
+	return unless defined $pp;
+	my ($inf) = $c->{$infinitif_present} =~ /^([$w]+)/;
+
+	$c->{$indicatif_futur_proche} = $c->{$indicatif_passe_compose};
+	$c->{$indicatif_futur_proche} =~ s/j'/je /mg;
+	$c->{$indicatif_futur_proche} =~ s/(?<![$w])(@{[join '|', keys %futur_proche]})(?=[^$w])/$futur_proche{$1}/mg;
+	$c->{$indicatif_futur_proche} =~ s/([^$w])$pp(s?)(\n)/$1$inf$3/mg;
+
+	$c->{$indicatif_passe_recent} = $c->{$indicatif_passe_compose};
+	$c->{$indicatif_passe_recent} =~ s/j'/je /mg;
+	$c->{$indicatif_passe_recent} =~ s/(?<![$w])(@{[join '|', keys %passe_recent]})(?=[^$w])/$passe_recent{$1}/mg;
+	$c->{$indicatif_passe_recent} =~ s/([^$w])$pp(s?)(\n)/$1$inf$3/mg;
+
+	$c->{$indicatif_passe_surcompose} = $c->{$indicatif_passe_compose};
+	$c->{$indicatif_passe_surcompose} =~ s/j'/je /mg;
+	$c->{$indicatif_passe_surcompose} =~ s/(?<![$w])(@{[join '|', keys %passe_surcompose]})(?=[^$w])/$passe_surcompose{$1}/mg;
+}
+
+# Search a list for the given target (index or verb)
+sub member
+{
+	my $target = shift;
+
+	for (@_) { return 1 if $target eq $_ }
+	if ($target =~ /-/) { my $t = $target; $t =~ tr/-//d; for (@_) { return 1 if $t eq $_ } }
+	if ($target =~ /\(.+\)/) { my $t = $target; $t =~ tr/()//d; for (@_) { return 1 if $t eq $_ } }
+	if ($target =~ /\(.+\)/) { my $t = $target; $t =~ s/\(.+\)//; for (@_) { return 1 if $t eq $_ } }
+	return 0;
+}
+
+# Guess a list of possible conjugation indexes for the given verb
+sub guess
+{
+	my $v = shift;
+
+	# Sort matching suffixes in %ends (longer better, exact better still)
+	my @ends = reverse sort sort_matches grep
+	{
+		my $verb = $v->{verb};
+		$verb =~ s/\(.*\)//;
+		$verb =~ s/([eé])(?:qu|gu|gl|gr|gn|ch|cr|br|tr|vr)er$/$1xer/;
+		substr($verb, length($verb) - length($_)) =~ /$_/
+	}
+	keys %ends;
+
+	# Delete pattern match if next guess is exact even if slightly shorter
+	# (This gets rid of warnings for: dépecer, planchéier and rapiécer)
+	shift @ends if @ends >= 2 && $ends[0] =~ /\./ && $ends[1] !~ /\./ && length($ends[0]) - length($ends[1]) <= 1;
+
+	# Select only the longest, cull pattern matches if exact matches exist
+	my @index;
+	my $prev;
+
+	for (@ends)
+	{
+		push(@index, @{$ends{$_}}) unless defined $prev && (length($_) < length($prev) || ($prev !~ /\./ && $_ =~ /\./));
+		$prev = $_;
+	}
+
+	return @index;
+}
+
+# Sort matching verb endings (longer better, exact better still)
+sub sort_matches
+{
+	my $x = length($a) <=> length($b);
+	return $x if $x;
+	return 1 if $a !~ /\./ && $b =~ /\./;
+	return -1 if $b !~ /\./ && $a =~ /\./;
+	return 0;
+}
+
+# Include only third person singuler for impersonal verbs
+sub impersonal
+{
+	my $c = shift;
+	my $t = shift;
+
+	delete $c->{$t}, return if $t eq $imperatif_passe || $t eq $imperatif_present;
+
+	my @s = grep { ($c->{impersonals}) ? /\bils?\b/ : /\bil\b/ } split /\n/, $c->{$t};
+	$c->{$t} = join("\n", @s) . "\n" if @s;
+}
+
+# Replace avoir with être as the auxilliary verb
+sub etre
+{
+	my $c = shift;
+	my $t = shift;
+
+	return if member($c->{index}, 3, 4, 22, 34, 52, '52a', 65);
+	return if $t eq $indicatif_passe_surcompose;
+
+	$c->{$t} =~ s/(?<![$w])(@{[join '|', keys %etre]})(?=[^$w])/$etre{$1}/mg;
+
+	# Make past participle agree in number (with exceptions)
+	$c->{$t} =~ s/^((?:nous |vous |ils )(?:@{[join '|', values %etre]})(?:[^\n]+[^s\n]))$/$1s/mg unless $c->{inv} || $c->{impersonals} || $c->{dative};
+}
+
+# Remove singular forms if only plural (e.g. s'entre-tuer)
+sub plural
+{
+	my $c = shift;
+	my $t = shift;
+
+	my @s = grep { /\b(nous|vous|ils)\b/ } split /\n/, $c->{$t};
+	$c->{$t} = join("\n", @s) . "\n" if @s;
+}
+
+# Remove tenses according to {only:...} hints
+sub only
+{
+	my $c = shift;
+	my $t = shift;
+
+	delete $c->{$t} if $t ne $infinitif_present && member($t, @all_tenses) && !member($t, @{$c->{only}});
+}
+
+# Adapt a tense for a reflexive verb
+sub reflexive
+{
+	my $c = shift;
+	my $t = shift;
+
+	# Replace normal pronouns with reflexive pronouns
+	my $prefix = ($c->{prefix} eq 'en') ? ' en' : '';
+	$c->{$t} =~ s/(?<![$w])(@{[join('|', keys %pronoun)]})(?= )/$pronoun{$1}$prefix/mg;
+
+	# Insert reflexive pronouns (and prefix) before infinitives and participles
+	$c->{$t} =~ s/^/se$prefix /mg, $c->{$t} =~ s/, /, se$prefix /mg if $t =~ /^(?:$infinitif|$participe)/;
+
+	# Append reflexive pronouns (and prefix) to the present imperative.
+	# (S'en is special (uses -te, rather than -toi, becomes -t'en)
+	if ($t eq $imperatif_present)
+	{
+		$c->{$t} =~ s/ons$/ons-nous/mg;
+		$c->{$t} =~ s/ez$/ez-vous/mg;
+		$c->{$t} =~ s/(?<!-[nv]ous)$/-toi/mg;
+		$c->{$t} =~ s/^-toi$//mg;
+		$c->{$t} =~ s/-toi$/-te en/mg if $c->{prefix} eq 'en';
+		$c->{$t} =~ s/(-[nv]ous)$/$1-en/mg if $c->{prefix} eq 'en';
+	}
+
+	# Delete Impératif Passé for reflexive verbs
+	delete $c->{$t}, return if $_ eq $imperatif_passe;
+
+	# Fix word order for reflexive pseudo tenses
+	$c->{$t} =~ s/(@{[join '|', keys %pseudo_word_order]})/$pseudo_word_order{$1}/mg if $t eq $indicatif_futur_proche || $t eq $indicatif_passe_recent || $t eq $indicatif_passe_surcompose;
+}
+
+# Insert the prefix 'en' (when the verb is not reflexive)
+sub en
+{
+	my $c = shift;
+	my $t = shift;
+
+	# Insert 'en' after subject pronouns
+	$c->{$t} =~ s/(?<![$w])(@{[join('|', keys %pronoun)]})(?= )/$1 $c->{prefix}/mg;
+	# Insert prefix before infinitives and participles
+	$c->{$t} =~ s/^/$c->{prefix} /mg, $c->{$t} =~ s/, /, $c->{prefix} /mg if $t =~ /^(?:$infinitif|$participe)/;
+	# Append prefix to the present imperative.
+	$c->{$t} =~ s/$/-en/mg, $c->{$t} =~ s/^-en$//mg if $t eq $imperatif_present;
+	# Insert prefix to the past imperative.
+	$c->{$t} =~ s/^(aie|ayons|ayez|sois|soyons|soyez) /$1 en /mg if $t eq $imperatif_passe;
+	# Fix word order for pseudo tenses
+	$c->{$t} =~ s/(@{[join '|', keys %pseudo_word_order]})/$pseudo_word_order{$1}/mg if $t eq $indicatif_futur_proche || $t eq $indicatif_passe_recent || $t eq $indicatif_passe_surcompose;
+}
+
+# If the stem of the model verb and its verb form differ in accent,
+# apply the difference to the stem of the verb in question.
+# (e.g. accentuate 'céd' + 'aér' => 'cèd' -> 'aèr')
+# (e.g. accentuate 'céd' + 'alléch' => 'cèd' -> 'allèch')
+sub accentuate
+{
+	my $c = shift;
+	my $orig_stem = shift;
+	my $new_stem = shift;
+	my $orig_form = shift;
+
+	my $new_form = $new_stem;
+	my $orig_stem_len = length($orig_stem);
+	my $new_stem_len = length($new_stem);
+
+	if ((my $rpos = last_diff($orig_stem, $orig_form, $orig_stem_len)) > 0)
+	{
+		my $check = substr($new_form, $new_stem_len - $rpos, 1);
+		my $checkp = substr($new_form, $new_stem_len - ($rpos + 1), 1);
+		my $npos = (defined $c->{notes} && $c->{notes} =~ /^-[eé]\.er$/ && $check !~ /[eéè]/ && $checkp =~ /[eéè]/) ? $rpos + 1 : $rpos;
+		substr($new_form, $new_stem_len - $npos, 1) = substr($orig_form, $orig_stem_len - $rpos, 1);
+		substr($orig_form, $orig_stem_len - $rpos, 1) = substr($orig_stem, $orig_stem_len - $rpos, 1);
+	}
+
+	return $new_form;
+}
+
+# Return the position of the right-most accent difference between the arguments
+sub last_diff
+{
+	my $stem = shift;
+	my $form = shift;
+	my $len = shift;
+
+	for (my $i = $len - 1; $i >= 0; --$i)
+	{
+		my $a = substr($stem, $i, 1);
+		my $b = substr($form, $i, 1);
+
+		return $len - $i if $a ne $b && similar($a, $b);
+	}
+
+	return 0;
+}
+
+# Are the arguments different versions of the same character?
+sub similar
+{
+	my $a = shift;
+	my $b = shift;
+
+	for (keys %similar)
+	{
+		return 1 if "$a$b" =~ /$similar{$_}$similar{$_}/;
+	}
+
+	return 0;
+}
+
+# Determine the stem in the given conjugation
+sub stem
+{
+	my $c = shift;
+	my @forms;
+
+	for my $tense ($infinitif_present, $infinitif_passe, $participe_present, $indicatif_present, $indicatif_imparfait, $indicatif_passe_simple, $indicatif_futur_simple, $subjonctif_present, $subjonctif_imparfait, $conditionnel_present)
+	{
+		next unless defined $c->{$tense};
+
+		for (split /\n/, $c->{$tense})
+		{
+			s/^(?:que |qu')//;
+			s/^(?:j'|je +|tu +|il +|nous +|vous +|ils +)//;
+			s/^(?:me +|te +|se +|nous +|vous +|m'|t'|s')//;
+			s/^(?:avoir +|être +)//;
+			push @forms, $_;
+		}
+	}
+
+	return common(@forms);
+}
+
+# Determine the longest common prefix among the given word forms
+sub common
+{
+	my @forms = @_;
+
+	# First get the maximum length of any of the word forms
+	my $max = 0;
+
+	for (@forms)
+	{
+		my $length = length($_);
+		$max = $length if $length > $max;
+	}
+
+	# Now find the longest common prefix (ignoring accent differences)
+	my $common = '';
+
+	for (my $i = 1; $i <= $max; ++$i)
+	{
+		my $test = normalize(substr($forms[0], 0, $i));
+		my $same = 1;
+
+		for (@forms[1..$#forms])
+		{
+			$same = normalize(substr($_, 0, $i)) eq $test;
+			last unless $same;
+		}
+
+		last if !$same;
+		$common = $test;
+	}
+
+	return substr($forms[0], 0, length($common));
+}
+
+# Return the given string with all accents removed.
+sub normalize
+{
+	my $str = shift;
+	$str =~ tr/¿ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåçèéêëìíîïðñòóôõöøùúûüýþÿ/?AAAAAACEEEEIIIIDNOOOOOxOUUUUYPBaaaaaaceeeeiiiidnoooooouuuuypy/;
+	$str =~ s/Æ/AE/g;
+	$str =~ s/æ/ae/g;
+	return $str;
+}
+
+# Return the given accented string turned into lowercase
+sub llc
+{
+	my $str = shift;
+	$str =~ tr/A-ZÆÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞ/a-zæàáâãäåçèéêëìíîïðñòóôõöøùúûüýþ/;
+	return $str;
+}
+
+# Return a pattern based on the argument that accepts accented versions
+sub denormalise
+{
+	my $str = shift;
+	$str =~ s/(@{[join('|', keys %similar)]})/$similar{$1}/mg;
+	return $str;
+}
+
+# Contract pronouns followed by a vowel or a non-aspirate h
+sub contraction
+{
+	my $str = shift;
+	my $nonasph = shift;
+
+	my @patterns = ('[aàäáâeèëéêiìïíîoòöóôuùüúû]');
+	push @patterns, $nonasph if defined $nonasph;
+
+	$str =~ s/\b([jmtsd])e (@{[join '|', @patterns]})/$1'$2/mg;
+
+	return $str;
+}
+
+# Compare the two words
+sub order
+{
+	my $a = normalize(shift);
+	my $b = normalize(shift);
+
+	$a =~ s/'e/e-e/; # entr'égorger is a contraction
+	$b =~ s/'e/e-e/; # of entre-égorger
+
+	$a =~ s/[-'()]//g;
+	$b =~ s/[-'()]//g;
+
+	return $a cmp $b;
+}
+
+# Print the contents of a conjugation (text, web or reverse index)
+sub output
+{
+	output_website(@_), do { return unless $do_rindex } if $do_cgi || $do_website;
+	output_rindex(@_), return if $do_rindex;
+	output_text(@_);
+}
+
+# Print a verb's conjugation(s) as plain text to stdout
+sub output_text
+{
+	my $i = shift;
+	my $v = $verb[$i];
+	my @c = conjugation($v);
+
+	for (; defined $v; $v = $v->{variation})
+	{
+		print contraction
+		(
+			($v->{primary} ? 'Verbe ' : '      ') .
+			($v->{reflexive} ? 'se ' : '') .
+			($v->{prefix} ne '' ? "$v->{prefix} " : '') .
+			$v->{verb} .
+			(defined $v->{preposition} ? " $v->{preposition}" : '') .
+			" = $v->{translation} = $v->{index}" .
+			($v->{common} ? ' (courant)' : '') .
+			($v->{aspirate} ? ' (aspiré)' : '') .
+			($v->{impersonal} || $v->{impersonals} ? ' (impersonnel)' : '') .
+			($v->{defunct} ? ' (défunt)' : '') .
+			($v->{archaic} ? ' (archaïque)' : '') .
+			"\n",
+			$v->{aspirate} ? undef : 'h'
+		);
+	}
+
+	for my $c (@c)
+	{
+		next unless defined $c;
+
+		print contraction
+		(
+			"Conjugaison $c->{index} " .
+			($c->{forced} ? '(forcé) ' : '') .
+			($c->{guessed} ? '(deviné) ' : '') .
+			($c->{index} eq $c->{indexorig} ? '(connu) ' : '') .
+			($c->{reflexive} ? 'se ' : '') .
+			($c->{prefix} ne '' ? "$c->{prefix} " : '') .
+			$c->{verb} .
+			(defined $c->{preposition} ? " $c->{preposition}" : '') .
+			"\n\n"
+		);
+
+		for my $tense ((@target_tense) ? @target_tense : @all_tenses)
+		{
+			print "$tense:\n", (exists $c->{$tense} ? $c->{$tense} : "N'existe pas\n"), "\n";
+		}
+	}
+}
+
+# Index all verb forms for reverse lookups (see reverse_index and load_rindex)
+sub output_rindex
+{
+	my $i = shift;
+	my $v = $verb[$i];
+	my @c = conjugation($v);
+
+	for my $c (@c)
+	{
+		next unless defined $c;
+
+		for my $tense (@all_tenses)
+		{
+			next unless exists $c->{$tense};
+
+			for (map { strip($tense, $_) } split /\n/, $c->{$tense})
+			{
+				print(STDERR "error: $v->{verb} ($tense) is empty!\n"), next if $_ eq '';
+
+				$ridx{$_} = [] unless exists $ridx{$_};
+				push @{$ridx{$_}}, $v->{verb} unless member($v->{verb}, @{$ridx{$_}});
+			}
+		}
+	}
+}
+
+# Strip everything away from around a verb form and return just the verb form
+sub strip
+{
+	my $t = shift;
+	my $s = shift;
+
+	if ($t eq $indicatif_present ||
+		$t eq $indicatif_imparfait ||
+		$t eq $indicatif_passe_simple ||
+		$t eq $indicatif_futur_simple ||
+		$t eq $conditionnel_present)
+	{
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+	}
+	elsif ($t eq $indicatif_passe_compose)
+	{
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+		$s =~ s/^(ai |as |a |avons |avez |ont |suis |es |est |sommes |êtes |sont )//;
+	}
+	elsif ($t eq $indicatif_plus_que_parfait)
+	{
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+		$s =~ s/^(avais |avais |avait |avions |aviez |avaient |étais |étais |était |étions |étiez |étaient )//;
+	}
+	elsif ($t eq $indicatif_passe_anterieur)
+	{
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+		$s =~ s/^(eus |eus |eut |eûmes |eûtes |eurent |fus |fus |fut |fûmes |fûtes |furent )//;
+	}
+	elsif ($t eq $indicatif_futur_anterieur)
+	{
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+		$s =~ s/^(aurai |auras |aura |aurons |aurez |auront |serai |seras |sera |serons |serez |seront )//;
+	}
+	elsif ($t eq $indicatif_futur_proche)
+	{
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(vais |vas |va |allons |allez |vont )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+	}
+	elsif ($t eq $indicatif_passe_recent)
+	{
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(viens |vient |venons |venez |viennent | )//;
+		$s =~ s/^(d'|de )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+	}
+	elsif ($t eq $indicatif_passe_surcompose)
+	{
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(ai eu |as eu |a eu |avons eu |avez eu |ont eu |ai été |as été |a été |avons été |avez été |ont été )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+	}
+	elsif ($t eq $subjonctif_present || $t eq $subjonctif_imparfait)
+	{
+		$s =~ s/^(?:qu'|que )//;
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+	}
+	elsif ($t eq $subjonctif_passe)
+	{
+		$s =~ s/^(?:qu'|que )//;
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+		$s =~ s/^(?:aie |aies |ait |ayons |ayez |aient |sois |soit |soyons |soyez |soient )//;
+	}
+	elsif ($t eq $subjonctif_plus_que_parfait)
+	{
+		$s =~ s/^(?:qu'|que )//;
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+		$s =~ s/^(?:eusse |eusses |eût |eussions |eussiez |eussent |fusse |fusses |fût |fussions |fussiez |fussent )//;
+	}
+	elsif ($t eq $imperatif_present)
+	{
+		$s =~ s/-t'en$/-toi en/;
+		$s =~ s/-(toi|nous|vous)([ -]en)?$//;
+	}
+	elsif ($t eq $imperatif_passe)
+	{
+		$s =~ s/^(aie |ayons |ayez |sois |soyons |soyez )//;
+		$s =~ s/^(en )//;
+	}
+	elsif ($t eq $conditionnel_passe_premiere_forme)
+	{
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+		$s =~ s/^(aurais |aurait |aurions |auriez |auraient |serais |serait |serions |seriez |seraient )//;
+	}
+	elsif ($t eq $conditionnel_passe_deuxieme_forme)
+	{
+		$s =~ s/^(?:j'|je |tu |il |nous |vous |ils )//;
+		$s =~ s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+		$s =~ s/^(en )//;
+		$s =~ s/^(eusse |eusses |eût |eussions |eussiez |eussent |fusse |fusses |fût |fussions |fussiez |fussent )//;
+	}
+	elsif ($t eq $participe_present)
+	{
+		$s =~ s/^(?:s'|se )//;
+		$s =~ s/^en //;
+	}
+	elsif ($t eq $participe_passe)
+	{
+		$s =~ s/\b(?:s'|se )//g;
+		$s =~ s/\ben //g;
+		$s =~ s/^(?:étant |ayant )//;
+		$s =~ s/,//;
+		# Add plural(s)
+		my $p = $s;
+		$p =~ s/(?<!s)( |$)/s$1/g;
+		$s .= " $p";
+	}
+	elsif ($t eq $infinitif_present)
+	{
+		$s =~ s/^(?:s'|se )//;
+		$s =~ s/^en //;
+	}
+	elsif ($t eq $infinitif_passe)
+	{
+		$s =~ s/^(?:s'|se )//;
+		$s =~ s/^en //;
+		$s =~ s/^(?:être |avoir )//;
+	}
+
+	# Multiple versions separated with '/'
+	$s =~ s/\// /g;
+	$s =~ s/^ +//;
+	$s =~ s/ +$//;
+
+	# Variant spellings indicated by '(.)'
+	if ($s =~ /[()]/)
+	{
+		my $c = $s;
+		$s =~ s/[()]//g;
+		$c =~ s/\([$w]{1,2}\)//g;
+		$s .= " $c";
+	}
+
+	return split / /, $s;
+}
+
+# Write the reverse lookup index to file
+sub reverse_index
+{
+	open R, ">$ridxfile" or die "Failed to open $ridxfile for writing: $!\n";
+
+	for my $k (sort keys %ridx)
+	{
+		for my $v (@{$ridx{$k}})
+		{
+			print R sprintf "%-24s %19s\n", $k, $v;
+		}
+	}
+
+	close R;
+}
+
+# Lookup infinitive(s) that give rise to the target verb forms
+sub load_rindex
+{
+	my $rc = open R, $ridxfile;
+	return if !$rc && $do_cgi;
+	die "Failed to open $ridxfile for reading: $!\n" if !$rc;
+	my $sz = 24 + 1 + 19 + 1;
+	my $items = (-s $ridxfile) / $sz;
+	my @inf;
+
+	for my $target (@target)
+	{
+		my $max = $items - 1;
+		my $min = 0;
+		my $mid;
+		my $inf;
+
+		while ($min <= $max)
+		{
+			$mid = ($min + $max) >> 1;
+			seek(R, $mid * $sz, 0) or last;
+			my ($key, $val) = <R> =~ /^(\S+)\s+(\S+)$/ or last;
+			$inf = $val, last if $key eq $target;
+			$max = $mid - 1, next if ($target cmp $key) < 0;
+			$min = $mid + 1;
+		}
+
+		if (!defined $inf)
+		{
+			push @inf, $target;
+		}
+		else
+		{
+			# Look back one slot (no word belongs to more than two verbs)
+			--$mid if $mid > 0;
+			seek(R, $mid * $sz, 0);
+			my $found = 0;
+
+			while (<R>)
+			{
+				my ($key, $val) = $_ =~ /^(\S+)\s+(\S+)$/ or last;
+				push(@inf, $val), ++$found, next if $key eq $target;
+				last if $found;
+			}
+		}
+	}
+
+	close R;
+
+	@target = sort { normalize($a) cmp normalize($b) } @inf;
+}
+
+# Print a verb's conjugation(s) as a web page
+my $done_http = 0;
+sub output_website
+{
+	my $i = shift;
+	my $v = $verb[$i];
+	my @c = conjugation($v);
+
+	if ($do_website)
+	{
+		my $fname = filepath($v);
+		open C, "> $fname" or die "Failed to open $fname for writing: $!\n";
+		select C;
+	}
+
+	print("Content-type: text/html;charset=iso-8859-1\n\n"), $done_http = 1 if $do_cgi && !$done_http;
+
+	if (!$do_cgi || $i == 0)
+	{
+		print '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">', "\n";
+		print "<html>\n";
+		print "<head><title>Conjugaison: $v->{verb}</title></head>\n";
+		print "<body>\n";
+	}
+
+	my $vc = '"#8080f0"'; # Verb heading colour
+	my $mc = '"#a0a0f0"'; # Mood heading colour
+	my $tc = '"#d0d0ff"'; # Tense heading colour
+	my $wc = '"#808080"'; # Written tense colour
+
+	print "<table cellspacing=0 cellpadding=0>\n";
+	print "<tr bgcolor=$vc>\n<td colspan=4>\n";
+
+	for (; defined $v; $v = $v->{variation})
+	{
+		print contraction
+		(
+			"<b><font size=\"+1\">" .
+			($v->{reflexive} ? 'se ' : '') .
+			($v->{prefix} ne '' ? "$v->{prefix} " : '') .
+			$v->{verb} .
+			(defined $v->{preposition} ? " $v->{preposition}" : '') .
+			"</font> - $v->{translation} ($v->{index})" .
+			($v->{common} ? ' (courant)' : '') .
+			($v->{aspirate} ? ' (aspiré)' : '') .
+			($v->{impersonal} || $v->{impersonals} ? ' (impersonnel)' : '') .
+			($v->{defunct} ? ' (défunt)' : '') .
+			($v->{archaic} ? ' (archaïque)' : '') .
+			($do_cgi && @verb != 1 && $v->{primary} ? sprintf(' [%d/%d]', $i + 1, scalar(@verb)) : '') .
+			"</b><br>\n",
+			$v->{aspirate} ? undef : 'h'
+		);
+	}
+
+	print "</td>\n</tr>\n</table>\n" unless @c;
+
+	for (my $j = 0; $j < @c; ++$j)
+	{
+		my $c = $c[$j];
+		next unless defined $c;
+
+		print "<table cellspacing=0 cellpadding=0>\n" if $j;
+		print "<tr bgcolor=$vc>\n<td colspan=4>" if $j;
+
+		print contraction
+		(
+			"Conjugaison $c->{index} " .
+			($c->{forced} ? '(forcé) ' : '') .
+			($c->{guessed} ? '(deviné) ' : '') .
+			($c->{index} eq $c->{indexorig} ? '(connu) ' : '') .
+			($c->{reflexive} ? 'se ' : '') .
+			($c->{prefix} ne '' ? "$c->{prefix} " : '') .
+			$c->{verb} .
+			(defined $c->{preposition} ? " $c->{preposition}" : '') .
+			(@c != 1 ? sprintf(' [%d/%d]', $j + 1, scalar(@c)) : '') .
+			"<br>\n"
+		);
+
+		print "</td>\n</tr>\n";
+		print "<tr bgcolor=$mc><td colspan=2><b>$infinitif</b></td><td colspan=2><b>$participe</b></td></tr>\n";
+		print "<tr bgcolor=$tc><td><b>$present</b></td><td><b>$passe</b></td><td><b>$present</b></td><td><b>$passe</b></td></tr>\n";
+		print "<tr valign=top><td>", web($c->{$infinitif_present}), "</td><td>", web($c->{$infinitif_passe}), "</td><td>", web($c->{$participe_present}), "</td><td>", web($c->{$participe_passe}), "</td></tr>\n";
+		print "<tr bgcolor=$mc><td colspan=4><b>$indicatif</b></td></tr>\n";
+		print "<tr bgcolor=$tc><td><b>$present</b></td><td><b>$imparfait</b></td><td><b>$passe&nbsp;$simple</b></td><td><b>$futur&nbsp;$simple</b></td></tr>\n";
+		print "<tr valign=top><td>", web($c->{$indicatif_present}), "</td><td>", web($c->{$indicatif_imparfait}), "</td><td><font color=$wc>", web($c->{$indicatif_passe_simple}), "</font></td><td>", web($c->{$indicatif_futur_simple}), "</td></tr>\n";
+		print "<tr bgcolor=$tc><td><b>$passe&nbsp;$compose</b></td><td><b>$plus_que_parfait</b></td><td><b>$passe&nbsp;$anterieur</b></td><td><b>$futur&nbsp;$anterieur</b></td></tr>\n";
+		print "<tr valign=top><td>", web($c->{$indicatif_passe_compose}), "</td><td>", web($c->{$indicatif_plus_que_parfait}), "</td><td><font color=$wc>", web($c->{$indicatif_passe_anterieur}), "</font></td><td>", web($c->{$indicatif_futur_anterieur}), "</td></tr>\n";
+		print "<tr bgcolor=$tc><td><b>$futur&nbsp;$proche</b></td><td><b>$passe&nbsp;$recent</b></td><td colspan=2><b>$passe&nbsp;$surcompose</b></td></tr>\n";
+		print "<tr valign=top><td>", web($c->{$indicatif_futur_proche}), "</td><td>", web($c->{$indicatif_passe_recent}), "</td><td colspan=2>", web($c->{$indicatif_passe_surcompose}), "</td></tr>\n";
+		print "<tr bgcolor=$mc><td colspan=4><b>$subjonctif</b></td></tr>\n";
+		print "<tr bgcolor=$tc><td><b>$present</b></td><td><b>$imparfait</b></td><td><b>$passe</b></td><td><b>$plus_que_parfait</b></td></tr>\n";
+		print "<tr valign=top><td>", web($c->{$subjonctif_present}), "</td><td><font color=$wc>", web($c->{$subjonctif_imparfait}), "</font></td><td>", web($c->{$subjonctif_passe}), "</td><td><font color=$wc>", web($c->{$subjonctif_plus_que_parfait}), "</font></td></tr>\n";
+		print "<tr bgcolor=$mc><td colspan=4><b>$imperatif</b></td></tr>\n";
+		print "<tr bgcolor=$tc><td><b>$present</b></td><td colspan=3><b>Passée</b></td></tr>\n";
+		print "<tr valign=top><td>", web($c->{$imperatif_present}), "</td><td colspan=3>", web($c->{$imperatif_passe}), "</td></tr>\n";
+		print "<tr bgcolor=$mc><td colspan=4><b>$conditionnel</b></td></tr>\n";
+		print "<tr bgcolor=$tc><td><b>$present</b></td><td><b>Passée&nbsp;$premiere&nbsp;$forme</b></td><td colspan=2><b>$passe&nbsp;$deuxieme&nbsp;$forme</b></td></tr>\n";
+		print "<tr valign=top><td>", web($c->{$conditionnel_present}), "</td><td>", web($c->{$conditionnel_passe_premiere_forme}), "</td><td colspan=2><font color=$wc>", web($c->{$conditionnel_passe_deuxieme_forme}), "</font></td></tr>\n";
+		print "</table>\n";
+	}
+
+	if (!$do_cgi || $i == @verb - 1)
+	{
+		print "</body>\n";
+		print "</html>\n";
+	}
+
+	if ($do_website)
+	{
+		select STDOUT;
+		close C;
+	}
+}
+
+# Return the given tense, if it exists, or "N'existe pas" for a website
+sub web
+{
+	my $t = shift;
+	return "<font color=\"#b0b0b0\">N'existe pas</font>" unless defined $t;
+	chop($t) while ($t =~ /[\r\n]$/);
+	$t =~ s/\n/&nbsp;<br>/mg;
+	$t =~ s/ /&nbsp;/mg;
+	if ($do_reverse) { $t =~ s/(?<![$w])(\Q$_\E)(?![$w])/<b>$1<\/b>/g for (@rtarget) }
+	return $t . "<br><br>";
+}
+
+# Return the path for the page for the given verb
+sub filepath
+{
+	return "$webdir/" . filename(shift, 1);
+}
+
+# Return the filename of the page for the given verb
+my %filename;
+sub filename
+{
+	my $v = shift;
+	my $creating = shift;
+	#my $name = ($v->{reflexive} ? 'se ' : '') . ($v->{prefix} ne '' ? "$v->{prefix} " : '') . $v->{verb} . (defined $v->{preposition} ? " $v->{preposition}" : '') . " $v->{index}";
+	my $name = ($v->{reflexive} ? 'se ' : '') . ($v->{prefix} ne '' ? "$v->{prefix} " : '') . $v->{verb} . " $v->{index}";
+	$name =~ s/['()]//g;
+	$name =~ s/[ \/]/-/g;
+	die "Filename clash: $name\n" if $creating && exists $filename{$name};
+	++$filename{$name};
+	die "Invalid characters: '$name'\n" unless $name =~ /^([$w\d\w]+)$/;
+	return "$1.html";
+}
+
+# Return the link text for the page for the given verb
+sub linkname
+{
+	my $v = shift;
+	my $l = contraction(($v->{reflexive} ? 'se ' : '') . ($v->{prefix} ne '' ? "$v->{prefix} " : '') . $v->{verb} . (defined $v->{preposition} ? " $v->{preposition}" : ''), $v->{aspirate} ? undef : 'h') . " - $v->{translation} ($v->{index})";
+	return ($v->{common}) ? "<b>$l</b>" : $l;
+}
+
+# Print the index page for a website
+sub output_webindex
+{
+	open I, "> $webdir/index.html" or die "Failed to open $webdir/index.html for writing: $!\n";
+	print I '<!doctype html public "-//W3C//DTD HTML 4.0 Frameset//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">', "\n";
+	print I "<html>\n";
+	print I "<head>\n<title>Conjuguer</title>\n</head>\n";
+	print I "<frameset rows=\"15%,85%\" cols=\"*\">\n";
+	print I "<frame name=top src=\"index-top.html\" marginwidth=1 marginheight=1 scrolling=auto>\n";
+	print I "<frameset rows=\"*\" cols=\"30%,70%\">\n";
+	print I "<frame name=left src=\"index-left.html\" marginwidth=1 marginheight=1 scrolling=auto>\n";
+	print I "<frame name=right src=\"index-right.html\" marginwidth=1 marginheight=1 scrolling=auto>\n";
+	print I "</frameset>\n";
+	print I "<noframes>\n";
+	print I "<body>\n";
+	print I "<b>Conjugasion des verbes Française:</b><br>\n";
+	print I "<a href=\"index-left.html\">Cliquez ici pour la liste de verbes.</a><br>\n";
+	print I "<a href=\"index-top.html\">Cliquez ici pour les verbes qui ne sont pas sur la liste.</a><br>\n";
+	print I "<a href=\"index-right.html\">Cliquez ici pour de l'aide.</a><br>\n";
+	print I "</body>\n";
+	print I "</noframes>\n";
+	print I "</frameset>\n";
+	print I "</html>\n";
+	close I;
+
+	open I, "> $webdir/index-top.html" or die "Failed to open $webdir/index-top.html for writing: $!\n";
+	print I '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">', "\n";
+	print I "<html>\n";
+	print I "<head>\n<title>Conjuguer</title>\n</head>\n";
+	print I "<body>\n";
+	print I "<b><font size=\"+1\">Tapez un verbe français et puis cliquez un des boutons pour le conjuguer ou le chercher.</font></b><br>\n";
+	print I "<b><font size=\"-1\">(Vous pouvez forcer une particulière conjugaison si vous taperiez aussi son index)</font></b><br>\n";
+	print I "<font size=\"-1\">Si vous ne pouvez pas taper les caractères accentés, utilisez: a\" pour ä, e' pour é, i` pour ì, o^ pour ô, et c, pour ç etc.</font><br>\n";
+	print I "<form action=\"$uri\" method=get target=right>\n";
+	print I "<table>\n";
+	print I "<tr>\n<td align=right>Verbe:</td><td><input type=text name=verb size=20></td>\n<td><input type=submit value=Conjuguez></td>\n<td><a target=right href=\"index-usage.html\"><font size=\"-1\">Usage</font></a></td>\n</tr>\n";
+	print I "<tr>\n<td align=right>Index:</td><td><input type=text name=index size=4></td>\n<td><input type=submit value=Cherchez name=reverse></td>\n<td><a target=right href=\"index-right.html\"><font size=\"-1\">Aide</font></a></td>\n</tr>\n";
+	print I "</table>\n";
+	print I "</form>\n";
+	print I "</body>\n";
+	print I "</html>\n";
+	close I;
+
+	open I, "> $webdir/index-left.html" or die "Failed to open $webdir/index-left.html for writing: $!\n";
+	print I '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">', "\n";
+	print I "<html>\n";
+	print I "<head>\n<title>Conjuguer</title>\n</head>\n";
+	print I "<body>\n";
+	print I "tous | ";
+	print I "<a target=left href=\"index-left-direct.html\">direct</a> | ";
+	print I join(' | ', map { "<a target=left href=\"index-left-$_.html\">$_</a>" } grep { !/direct/ } sort { normalize($a) cmp normalize($b) } keys %prep), "<br>\n";
+	print I "<a target=left href=\"index-left-reflexive.html\">pronominal</a> | ";
+	print I "<a target=left href=\"index-left-aspirate.html\">aspiré</a><br>\n<hr>\n";
+	for (@verb)
+	{
+		for (my $v = $_; $v; $v = $v->{variation})
+		{
+			print I "<a target=right href=\"", filename($_), "\">", linkname($v), "</a><br>\n";
+		}
+	}
+	print I "</body>\n";
+	print I "</html>\n";
+	close I;
+
+	for my $prep (keys %prep)
+	{
+		open I, "> $webdir/index-left-$prep.html" or die "Failed to open $webdir/index-left-$prep.html for writing: $!\n";
+		print I '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">', "\n";
+		print I "<html>\n";
+		print I "<head>\n<title>Conjuguer</title>\n</head>\n";
+		print I "<body>\n";
+		print I "<a target=left href=\"index-left.html\">tous</a> | ";
+		print I ($prep eq 'direct') ? "direct | " : "<a target=left href=\"index-left-direct.html\">direct</a> | ";
+		print I join(' | ', map { ($_ eq $prep) ? $_ : "<a target=left href=\"index-left-$_.html\">$_</a>" } grep { !/direct/ } sort { normalize($a) cmp normalize($b) } keys %prep), "<br>\n";
+		print I "<a target=left href=\"index-left-reflexive.html\">pronominal</a> | ";
+		print I "<a target=left href=\"index-left-aspirate.html\">aspiré</a><br>\n<hr>\n";
+		print I "<a target=right href=\"", filename($_), "\">", linkname($_), "</a><br>\n" for (@{$prep{$prep}});
+		print I "</body>\n";
+		print I "</html>\n";
+		close I;
+	}
+
+	open I, "> $webdir/index-left-reflexive.html" or die "Failed to open $webdir/index-left-reflexive.html for writing: $!\n";
+	print I '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">', "\n";
+	print I "<html>\n";
+	print I "<head>\n<title>Conjuguer</title>\n</head>\n";
+	print I "<body>\n";
+	print I "<a target=left href=\"index-left.html\">tous</a> | ";
+	print I "<a target=left href=\"index-left-direct.html\">direct</a> | ";
+	print I join(' | ', map { "<a target=left href=\"index-left-$_.html\">$_</a>" } grep { !/direct/ } sort { normalize($a) cmp normalize($b) } keys %prep), "<br>\n";
+	print I "pronominal | ";
+	print I "<a target=left href=\"index-left-aspirate.html\">aspiré</a><br>\n<hr>\n";
+	print I "<a target=right href=\"", filename($_), "\">", linkname($_), "</a><br>\n" for (sort { normalize($a) cmp normalize($b) } grep { $_->{reflexive} } @verb);
+	print I "</body>\n";
+	print I "</html>\n";
+	close I;
+
+	open I, "> $webdir/index-left-aspirate.html" or die "Failed to open $webdir/index-left-aspirate.html for writing: $!\n";
+	print I '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">', "\n";
+	print I "<html>\n";
+	print I "<head>\n<title>Conjuguer</title>\n</head>\n";
+	print I "<body>\n";
+	print I "<a target=left href=\"index-left.html\">tous</a> | ";
+	print I "<a target=left href=\"index-left-direct.html\">direct</a> | ";
+	print I join(' | ', map { "<a target=left href=\"index-left-$_.html\">$_</a>" } grep { !/direct/ } sort { normalize($a) cmp normalize($b) } keys %prep), "<br>\n";
+	print I "<a target=left href=\"index-left-reflexive.html\">pronominal</a> | ";
+	print I "aspiré<br>\n<hr>\n";
+	print I "<a target=right href=\"", filename($_), "\">", linkname($_), "</a><br>\n" for (sort { normalize($a) cmp normalize($b) } grep { $_->{aspirate} } @verb);
+	print I "</body>\n";
+	print I "</html>\n";
+	close I;
+
+	open I, "> $webdir/index-right.html" or die "Failed to open $webdir/index-right.html for writing: $!\n";
+	print I '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">', "\n";
+	print I "<html>\n";
+	print I "<head>\n<title>Conjuguer</title>\n</head>\n";
+	print I "<body>\n";
+	print I "<b>Aide</b><br>\n";
+	print I "<p>\nCliquez sur un verbe à gauche pour voir sa conjugaison à droite.\n";
+	print I "Ou tapez un verbe ci-dessus et cliquez un des boutons pour le conjuguer or le chercher.\n";
+	print I "Vous pouvez conjuguer seulement les infinitifs. Mais vous pouvez chercher un verbe dans n'importe quelle forme.\n</p>\n";
+	print I "<p>\nPar exemple,<br>\n";
+	print I "&nbsp;&nbsp;<tt>manger</tt> + <tt>Conjuguer</tt> montrera la conjugaison du verbe <em>manger</em>.<br>\n";
+	print I "&nbsp;&nbsp;<tt>suis</tt> + <tt>Chercher</tt> montrera les conjugaisons des verbes <em>être</em> et <em>suivre</em>.\n</p>\n";
+	print I "<p>Le lien hypertexte ci-dessus intitulé <em>« Usage »</em> montrera des notes (en anglais) sur l'usage des modes et des temps.<br>\n";
+	print I "Le lien hypertexte ci-dessus intitulé <em>« Aide »</em> montrera cette page.\n</p>\n";
+	print I "<p>Téléchargez ce logiciel: <a href=\"conjuguer.tar.gz\">conjuguer.tar.gz</a>\n</p>\n";
+	print I "<br>\n";
+	print I "<b>Help</b><br>\n";
+	print I "<p>\nClick on a verb to your left to see its conjugation here on the right.\n";
+	print I "Or type in a verb above and click on of the buttons to conjugate it or to search for it.\n";
+	print I "You can only conjugate infinitives. You can search for a verb in any form.\n</p>\n";
+	print I "<p>\nFor example,<br>\n";
+	print I "&nbsp;&nbsp;<tt>manger</tt> + <tt>Conjuguer</tt> will display the conjugation of the verb <em>manger</em>.<br>\n";
+	print I "&nbsp;&nbsp;<tt>suis</tt> + <tt>Chercher</tt> will display the conjugations of the verbs <em>être</em> and <em>suivre</em>.</p>\n";
+	print I "<p>The link above called <em>\"Usage\"</em> will display notes on the usage of moods and tenses.<br>\n";
+	print I "The link above called <em>\"Aide\"</em> will display this page.\n</p>\n";
+	print I "<p>Download this software: <a href=\"conjuguer.tar.gz\">conjuguer.tar.gz</a>\n</p>\n";
+	print I "</body>\n";
+	print I "</html>\n";
+	close I;
+
+	doco2html('usage.doco', "$webdir/index-usage.html", 'Usage');
+
+	open H, "> $webdir/.htaccess" or die "Failed to open $webdir/.htaccess for writing: $!\n";
+	print H "AddType text/html;charset=iso-8859-1 html\n";
+	close H;
+}
+
+# Convert usage doco format into html
+sub doco2html
+{
+	my $src = shift;
+	my $dst = shift;
+	my $title = shift || 'Aide';
+
+	open S, $src or die "Failed to open $src: $!\n";
+	open D, "> $dst" or die "Failed to open $dst: \n";
+
+	print D "<!doctype html public \"-//W3C//DTD HTML 4.0 Transitional//EN\" \"http://www.w3.org/TR/REC-html40/loose.dtd\">\n";
+	print D "<html>\n<head>\n<title>$title</title>\n</head>\n<body>\n";
+
+	my %t = ('' => '/', '/' => '');
+	my $b = '';
+	my $i = '';
+	my $c = '';
+	my $p = 0;
+	my $t = 0;
+	my $l = '';
+
+	my $endp = sub { $l = 'p', $p = 0, print D "</p>\n" if $p };
+	my $endt = sub { $l = 't', $t = 0, print D "</table>\n" if $t };
+	my $end = sub { &$endp(); &$endt() };
+	my $newp = sub { &$end(); $p = 1; print D "<p>\n" };
+	my $newt = sub { &$end(); $t = 1; print D "<br>\n" if $l eq 't'; print D "<table border=0 cellspacing=0 cellpadding=0>\n" };
+
+	while (<S>)
+	{
+		while (/\/\//) { s/\/\//<${b}b>/; $b = $t{$b} }
+		while (/\\\\/) { s/\\\\/<${i}em>/; $i = $t{$i} }
+		while (/##/) { s/##/<${c}tt>/; $c = $t{$c} }
+		if (/^$/) { &$end(); next }
+		if (/^=head/) { &$end(); $l = 'h'; s/^=head(\d) (.*)$/<h$1>$2<\/h$1>/; print D; next }
+		if (/^\t(.*)$/) { &$newt() unless $t; s/^\t//; s/\n//; $_ = "<tr valign=top><td>&nbsp;&nbsp;&nbsp;&nbsp;</td>" . join('', map { "<td align=left>$_&nbsp;</td>" } split /\t+/, $_) . "</tr>\n"; print D; next }
+		&$newp() unless $p;
+		print D;
+	}
+
+	&$end(); print D "</body>\n</html>\n";
+
+	print STDERR "warning: unterminated <b>\n" if $b eq '/';
+	print STDERR "warning: unterminated <em>\n" if $i eq '/';
+
+	close S;
+	close D;
+}
+
+# Print the histogram of verbs by their first letter
+sub print_verb_hist
+{
+	print STDERR "\nHistogram of verbs by their first letter:\n";
+	print STDERR "$_: $hist{$_}\n" for (reverse sort { $hist{$a} <=> $hist{$b} } keys %hist);
+}
+
+# Print the histogram of conjugation usage
+sub print_conj_hist
+{
+	print STDERR "\nHistogram of conjugaison usage:\n";
+	print STDERR "$_: $conj{$_}->{count}\n" for (reverse sort { $conj{$a}->{count} <=> $conj{$b}->{count} } keys %conj);
+}
+
+# Print the histogram of preposition ussage
+sub print_prep_hist
+{
+	print STDERR "\nHistogram of preposition usage:\n";
+	print STDERR "$_: $phst{$_}\n" for (reverse sort { $phst{$a} <=> $phst{$b} } keys %phst);
+}
+
+# Print the stem list
+sub print_stem_list
+{
+	print STDERR "\nList of stems from conjugation file:\n";
+	print STDERR "$_: $stem{$_}\n" for (sort keys %stem);
+}
+
+# Does it look like we are expected to behave like a CGI script?
+sub wantcgi
+{
+	return exists $ENV{GATEWAY_INTERFACE} || exists $ENV{QUERY_STRING} || exists $ENV{HTTP_REFERER} || exists $ENV{REQUEST_URI} || exists $ENV{REQUEST_METHOD};
+}
+
+# Fatal error message for a web browser
+sub fatal_cgi
+{
+	print "Content-type: text/html;charset=iso-8859-1\n\n";
+	print '<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">', "\n";
+	print "<html>\n";
+	print "<head><title>Conjuguer</title></head>\n";
+	print "<body>\n";
+	print "<p>Quel verbe voulez-vous conjuguer? Tapez-le en haut et essayez encore, ou cliquez sur un verbe à gauche.</p>\n";
+	print "<p>Which verb do you want to conjugate? Type it in above and try again, or click on a verb over to your left.</p>\n";
+	print "</body>\n";
+	print "</html>\n";
+	exit 0;
+}
+
+# Return un untainted version of the argument string for use as a filepath
+sub filespec
+{
+	my $s = shift;
+	return undef unless defined $s;
+	($s) = $s =~ /^([\/\w_.-]+)$/;
+	return $s;
+}
+
+# vim:set encoding=latin1:
+# vi:set ts=4 sw=4:

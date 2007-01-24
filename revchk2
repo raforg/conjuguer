@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+for v in `hist reverse.idx| grep -w -v 1 | awk '{print $1}'`
+do
+	echo === $v ===
+	echo === $v === >&2
+	time conjuguer -r "$v" | egrep '(Verbe|Conjugaison)' | sed -e 's/^Verbe //' -e 's/ =.*$//'
+	echo
+done > revchk2.out

@@ -1,0 +1,277 @@
+#!/usr/bin/perl -w
+use strict;
+
+my $w = "a-zàáâäèéêëìíîïòóôöùúûüç()/'-";
+my $e = "uéiïstû";
+
+while (<>)
+{
+	next if /^$/;
+
+	if (/Indicatif Présent/ || /Indicatif Imparfait/ || /Indicatif Passé simple/ || /Indicatif Futur simple/ || /Conditionnel Présent/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			print 'SIMP: ', $line unless /^[$w]+$/;
+		}
+	}
+	elsif (/Indicatif Passé composé/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			s/^(ai |as |a |avons |avez |ont |suis |es |est |sommes |êtes |sont )//;
+			print 'IPC: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (/Indicatif Plus-que-parfait/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			s/^(avais |avais |avait |avions |aviez |avaient |étais |étais |était |étions |étiez |étaient )//;
+			print 'IPQP: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (/Indicatif Passé antérieur/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			s/^(eus |eus |eut |eûmes |eûtes |eurent |fus |fus |fut |fûmes |fûtes |furent )//;
+			print 'IPA: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (/Indicatif Futur antérieur/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			s/^(aurai |auras |aura |aurons |aurez |auront |serai |seras |sera |serons |serez |seront )//;
+			print 'IFA: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (/Indicatif Futur proche/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(vais |vas |va |allons |allez |vont )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			print 'IFP: ', $line unless /^[$w]+(er|ir|ïr|re)$/;
+		}
+	}
+	elsif (/Indicatif Passé récent/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(viens |vient |venons |venez |viennent | )//;
+			s/^(d'|de )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			print 'IPP: ', $line unless /^[$w]+(er|ir|ïr|re)$/;
+		}
+	}
+	elsif (/Indicatif Passé surcomposé/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(ai eu |as eu |a eu |avons eu |avez eu |ont eu |ai été |as été |a été |avons été |avez été |ont été )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			print 'IPSC: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (/Subjonctif Présent/ || /Subjonctif Imparfait/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:qu'|que )//;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			print 'S: ', $line unless /^[$w]+$/;
+		}
+	}
+	elsif (/Subjonctif Passé/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:qu'|que )//;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			s/^(?:aie |aies |ait |ayons |ayez |aient |sois |soit |soyons |soyez |soient )//;
+			print 'SP: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (/Subjonctif Plus-que-parfait/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:qu'|que )//;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			s/^(?:eusse |eusses |eût |eussions |eussiez |eussent |fusse |fusses |fût |fussions |fussiez |fussent )//;
+			print 'SPQP: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (/Impératif Présent/)
+	{
+		while (<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/-t'en$/-toi en/;
+			s/-(toi|nous|vous)([ -]en)?$//;
+			print 'IMP.PRES: ', $line unless /^[$w]+$/;
+		}
+	}
+	elsif (/Impératif Passé/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(aie |ayons |ayez |sois |soyons |soyez )//;
+			s/^(en )//;
+			print 'IMP.PASS: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (/Conditionnel Passé première forme/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			s/^(aurais |aurait |aurions |auriez |auraient |serais |serait |serions |seriez |seraient )//;
+			print 'CP1: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (/Conditionnel Passé deuxième forme/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:j'|je |tu |il |nous |vous |ils )//;
+			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
+			s/^(en )//;
+			s/^(eusse |eusses |eût |eussions |eussiez |eussent |fusse |fusses |fût |fussions |fussiez |fussent )//;
+			print 'CP2: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (/Participe Présent/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:s'|se )//;
+			s/^en //;
+			print 'PARTPRES: ', $line unless /^[$w]+ant$/;
+		}
+	}
+	elsif (/Participe Passé/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/\b(?:s'|se )//g;
+			s/\ben //g;
+			s/^(?:étant |ayant )//;
+			s/,//;
+			print 'PARTPASS: ', $line unless /^[$w]+[$e](?: [$w]+[$e]e)?$/;
+		}
+	}
+	elsif (/Infinitif Présent/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:s'|se )//;
+			s/^en //;
+			print 'INFPRES: ', $line unless /^[$w]+(er|ir|ïr|re)$/;
+		}
+	}
+	elsif (/Infinitif Passé/)
+	{
+		while(<>)
+		{
+			last if /^$/;
+			next if /^N'existe pas/;
+			my $line = $_;
+			s/^(?:s'|se )//;
+			s/^en //;
+			s/^(?:être |avoir )//;
+			print 'INFPASS: ', $line unless /^[$w]+[$e]s?$/;
+		}
+	}
+	elsif (!/^Verbe / && !/^Conjugaison / && !/^     /)
+	{
+		print "ERROR: $_";
+	}
+}
+
+# vi:set ts=4 sw=4:

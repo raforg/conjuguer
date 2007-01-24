@@ -1,0 +1,25 @@
+conjuguer - french verb conjugation program and website
+20031025 raf <raf@raf.org> http://raf.org/conjuguer/
+
+This directory contains a french verb conjugation program which can be used
+from the command line to output some or all tenses of some or all french
+verbs. It can also generate a website containing all conjugations of all
+french verbs and it is also the CGI program that drives the website.
+
+See "make help" for more details but note that the Makefile will have to be
+edited to suit your needs.
+
+To install as a command line utility:
+
+ make install
+
+Then run conjuguer -h
+
+To install as a web site:
+
+ make web
+
+Then visit:
+
+	http://localhost/conjuguer/
+

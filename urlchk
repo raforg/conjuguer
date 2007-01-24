@@ -1,0 +1,25 @@
+#!/usr/bin/perl -w
+use strict;
+
+# Check all of the links in the index-left*.html pages
+my $d = '/var/www/html/french';
+@ARGV = glob "$d/index-left*.html" unless @ARGV;
+
+for (@ARGV)
+{
+	my $fname = $_;
+	my $fn = $fname;
+	$fn =~ s/^.*\///;
+
+	open F, $fname or die "Failed to open $fname: $!\n";
+
+	while (<F>)
+	{
+		if (/<a target=right href="(.+)">(.+)<\/a>/)
+		{
+			my ($url, $desc) = ($1, $2);
+			print "$fn: $url: $desc\n" unless -f "$d/$url";
+		}
+	}
+	close F;
+}
