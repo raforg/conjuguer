@@ -1,0 +1,26 @@
+20230408
+
+    - Convert from ISO-8859-1 to UTF-8
+    - Minor Perl modernizations
+    - Minor HTML improvements
+    - Change license from gplv2+ to gplv3+
+    - Add LICENSE, COPYING, CHANGELOG, CODE_OF_CONDUCT.md
+    - Add LICENSES/* and .reuse/dep5 (REUSE 3.0 compliant)
+    - Change README to README.md and add more detail
+
+20070124
+
+    - Initial commit
+
+20031025
+
+    - Initial version (lost)
+
+--------------------------------------------------------------------------------
+
+    URL: https://raf.org/conjugaison
+    GIT: https://github.com/raforg/conjugaison
+    GIT: https://codeberg.org/raforg/conjugaison
+    Date: 20230408
+    Author: raf <raf@raf.org>
+

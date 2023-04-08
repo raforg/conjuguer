@@ -1,25 +1,57 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
+use warnings;
 use strict;
+use utf8;
 
-# Check all of the links in the index-left*.html pages
-my $d = '/var/www/html/french';
-@ARGV = glob "$d/index-left*.html" unless @ARGV;
+# conjuguer - french verb conjugation website
+# https://raf.org/conjuguer
+# https://github.com/raforg/conjuguer
+# https://codeberg.org/raforg/conjuguer
+#
+# Copyright (C) 2003-2007, 2023 raf <raf@raf.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+#
+# 20230408 raf <raf@raf.org>
+
+# urlchk - Check all of the links in the index-left*.html pages
+# usage: urlchk /path/to/conjuguer-files/index-left*.html
+
+use open qw(:std :encoding(UTF-8));
+use Encode qw(encode decode);
+sub enc { encode('UTF-8', $_[0]) }
+sub dec { decode('UTF-8', $_[0]) }
+
+die "usage: $0 /path/to/conjugier/index-left*.html" unless @ARGV;
 
 for (@ARGV)
 {
-	my $fname = $_;
-	my $fn = $fname;
-	$fn =~ s/^.*\///;
+	my $fname = dec($_);
+	my ($dir, $fn) = $fname =~ /^(.*)\/([^\/]+\.html)$/;
 
-	open F, $fname or die "Failed to open $fname: $!\n";
+	open my $F, '<', $fname or die "Failed to open $fname: $!\n";
 
-	while (<F>)
+	while (<$F>)
 	{
-		if (/<a target=right href="(.+)">(.+)<\/a>/)
+		if (/<a target="right" href="(.+)">(.+)<\/a>/)
 		{
 			my ($url, $desc) = ($1, $2);
-			print "$fn: $url: $desc\n" unless -f "$d/$url";
+			print "$fn: $url: $desc\n" unless -f enc("$dir/$url");
 		}
 	}
-	close F;
+
+	close $F;
 }
+
+# vi:set ts=4 sw=4:

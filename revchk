@@ -1,21 +1,54 @@
-#!/usr/bin/perl -w
-use strict;
+#!/usr/bin/perl
+use 5.016;
+use warnings;
+use utf8;
+
+# conjuguer - french verb conjugation website
+# https://raf.org/conjuguer
+# https://github.com/raforg/conjuguer
+# https://codeberg.org/raforg/conjuguer
+#
+# Copyright (C) 2003-2007, 2023 raf <raf@raf.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+#
+# 20230408 raf <raf@raf.org>
+
+# revchk - Read reverse.idx and check that the first characters of the
+# key and value match (except for être, avoir and aller).
+# usage: make reverse.idx; ./revchk
+
+use open qw(:std :encoding(UTF-8));
 
 my $maxkey = 0;
 my $maxval = 0;
 
-open R, 'reverse.idx' or die "Failed to open reverse.idx for reading: $!\n";
+open my $R, '<', 'reverse.idx' or die "Failed to open reverse.idx for reading: $!\n";
 
-while (<R>)
+while (<$R>)
 {
 	chop;
 	my ($key, $val) = $_ =~ /^(\S+)\s+(\S+)$/;
-	print "$key $val\n" if substr($key, 0, 1) ne substr($val, 0, 1) && $val ne '�tre' && $val ne 'avoir' && $val ne 'aller';
+	print "$key $val\n" if substr($key, 0, 1) ne substr($val, 0, 1) && $val ne 'être' && $val ne 'avoir' && $val ne 'aller';
 	$maxkey = length $key if length $key > $maxkey;
 	$maxval = length $val if length $val > $maxval;
 }
 
-close R;
+close $R;
 
-print "maxkey = $maxkey\n";
-print "maxval = $maxval\n";
+#print "maxkeylen = $maxkey\n";
+#print "maxvallen = $maxval\n";
+
+# vim:set fenc=utf8:
+# vi:set ts=4 sw=4:

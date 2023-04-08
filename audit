@@ -1,16 +1,46 @@
-#!/usr/bin/perl -w
-use strict;
+#!/usr/bin/perl
+use 5.016;
+use warnings;
+use utf8;
 
-my $w = "a-zàáâäèéêëìíîïòóôöùúûüç()/'-";
-my $e = "uéiïstû";
+# conjuguer - french verb conjugation website
+# https://raf.org/conjuguer
+# https://github.com/raforg/conjuguer
+# https://codeberg.org/raforg/conjuguer
+#
+# Copyright (C) 2003-2007, 2023 raf <raf@raf.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+#
+# 20230408 raf <raf@raf.org>
+
+# audit - Check that the output of conjuguer with no argumens looks OK
+# Used by make output
+# usage: ./conjuguer > output; ./audit output
+
+use open qw(:std :encoding(UTF-8));
+
+my $w = "a-zÃ Ã¡Ã¢Ã¤Ã¨Ã©ÃªÃ«Ã¬Ã­Ã®Ã¯Ã²Ã³Ã´Ã¶Ã¹ÃºÃ»Ã¼Ã§()/'-";
+my $e = "uÃ©iÃ¯stÃ»";
 
 while (<>)
 {
 	next if /^$/;
 
-	if (/Indicatif Présent/ || /Indicatif Imparfait/ || /Indicatif Passé simple/ || /Indicatif Futur simple/ || /Conditionnel Présent/)
+	if (/Indicatif PrÃ©sent/ || /Indicatif Imparfait/ || /Indicatif PassÃ© simple/ || /Indicatif Futur simple/ || /Conditionnel PrÃ©sent/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -21,9 +51,9 @@ while (<>)
 			print 'SIMP: ', $line unless /^[$w]+$/;
 		}
 	}
-	elsif (/Indicatif Passé composé/)
+	elsif (/Indicatif PassÃ© composÃ©/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -31,13 +61,13 @@ while (<>)
 			s/^(?:j'|je |tu |il |nous |vous |ils )//;
 			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
 			s/^(en )//;
-			s/^(ai |as |a |avons |avez |ont |suis |es |est |sommes |êtes |sont )//;
+			s/^(ai |as |a |avons |avez |ont |suis |es |est |sommes |Ãªtes |sont )//;
 			print 'IPC: ', $line unless /^[$w]+[$e]s?$/;
 		}
 	}
 	elsif (/Indicatif Plus-que-parfait/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -45,13 +75,13 @@ while (<>)
 			s/^(?:j'|je |tu |il |nous |vous |ils )//;
 			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
 			s/^(en )//;
-			s/^(avais |avais |avait |avions |aviez |avaient |étais |étais |était |étions |étiez |étaient )//;
+			s/^(avais |avais |avait |avions |aviez |avaient |Ã©tais |Ã©tais |Ã©tait |Ã©tions |Ã©tiez |Ã©taient )//;
 			print 'IPQP: ', $line unless /^[$w]+[$e]s?$/;
 		}
 	}
-	elsif (/Indicatif Passé antérieur/)
+	elsif (/Indicatif PassÃ© antÃ©rieur/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -59,13 +89,13 @@ while (<>)
 			s/^(?:j'|je |tu |il |nous |vous |ils )//;
 			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
 			s/^(en )//;
-			s/^(eus |eus |eut |eûmes |eûtes |eurent |fus |fus |fut |fûmes |fûtes |furent )//;
+			s/^(eus |eus |eut |eÃ»mes |eÃ»tes |eurent |fus |fus |fut |fÃ»mes |fÃ»tes |furent )//;
 			print 'IPA: ', $line unless /^[$w]+[$e]s?$/;
 		}
 	}
-	elsif (/Indicatif Futur antérieur/)
+	elsif (/Indicatif Futur antÃ©rieur/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -79,7 +109,7 @@ while (<>)
 	}
 	elsif (/Indicatif Futur proche/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -88,12 +118,12 @@ while (<>)
 			s/^(vais |vas |va |allons |allez |vont )//;
 			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
 			s/^(en )//;
-			print 'IFP: ', $line unless /^[$w]+(er|ir|ïr|re)$/;
+			print 'IFP: ', $line unless /^[$w]+(er|ir|Ã¯r|re)$/;
 		}
 	}
-	elsif (/Indicatif Passé récent/)
+	elsif (/Indicatif PassÃ© rÃ©cent/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -104,26 +134,26 @@ while (<>)
 			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
 			s/^(en )//;
 			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
-			print 'IPP: ', $line unless /^[$w]+(er|ir|ïr|re)$/;
+			print 'IPP: ', $line unless /^[$w]+(er|ir|Ã¯r|re)$/;
 		}
 	}
-	elsif (/Indicatif Passé surcomposé/)
+	elsif (/Indicatif PassÃ© surcomposÃ©/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
 			my $line = $_;
 			s/^(?:j'|je |tu |il |nous |vous |ils )//;
-			s/^(ai eu |as eu |a eu |avons eu |avez eu |ont eu |ai été |as été |a été |avons été |avez été |ont été )//;
+			s/^(ai eu |as eu |a eu |avons eu |avez eu |ont eu |ai Ã©tÃ© |as Ã©tÃ© |a Ã©tÃ© |avons Ã©tÃ© |avez Ã©tÃ© |ont Ã©tÃ© )//;
 			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
 			s/^(en )//;
 			print 'IPSC: ', $line unless /^[$w]+[$e]s?$/;
 		}
 	}
-	elsif (/Subjonctif Présent/ || /Subjonctif Imparfait/)
+	elsif (/Subjonctif PrÃ©sent/ || /Subjonctif Imparfait/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -135,9 +165,9 @@ while (<>)
 			print 'S: ', $line unless /^[$w]+$/;
 		}
 	}
-	elsif (/Subjonctif Passé/)
+	elsif (/Subjonctif PassÃ©/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -152,7 +182,7 @@ while (<>)
 	}
 	elsif (/Subjonctif Plus-que-parfait/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -161,11 +191,11 @@ while (<>)
 			s/^(?:j'|je |tu |il |nous |vous |ils )//;
 			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
 			s/^(en )//;
-			s/^(?:eusse |eusses |eût |eussions |eussiez |eussent |fusse |fusses |fût |fussions |fussiez |fussent )//;
+			s/^(?:eusse |eusses |eÃ»t |eussions |eussiez |eussent |fusse |fusses |fÃ»t |fussions |fussiez |fussent )//;
 			print 'SPQP: ', $line unless /^[$w]+[$e]s?$/;
 		}
 	}
-	elsif (/Impératif Présent/)
+	elsif (/ImpÃ©ratif PrÃ©sent/)
 	{
 		while (<>)
 		{
@@ -177,9 +207,9 @@ while (<>)
 			print 'IMP.PRES: ', $line unless /^[$w]+$/;
 		}
 	}
-	elsif (/Impératif Passé/)
+	elsif (/ImpÃ©ratif PassÃ©/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -189,9 +219,9 @@ while (<>)
 			print 'IMP.PASS: ', $line unless /^[$w]+[$e]s?$/;
 		}
 	}
-	elsif (/Conditionnel Passé première forme/)
+	elsif (/Conditionnel PassÃ© premiÃ¨re forme/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -203,9 +233,9 @@ while (<>)
 			print 'CP1: ', $line unless /^[$w]+[$e]s?$/;
 		}
 	}
-	elsif (/Conditionnel Passé deuxième forme/)
+	elsif (/Conditionnel PassÃ© deuxiÃ¨me forme/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -213,13 +243,13 @@ while (<>)
 			s/^(?:j'|je |tu |il |nous |vous |ils )//;
 			s/^(?:m'|me |t'|te |s'|se |nous |vous |se )//;
 			s/^(en )//;
-			s/^(eusse |eusses |eût |eussions |eussiez |eussent |fusse |fusses |fût |fussions |fussiez |fussent )//;
+			s/^(eusse |eusses |eÃ»t |eussions |eussiez |eussent |fusse |fusses |fÃ»t |fussions |fussiez |fussent )//;
 			print 'CP2: ', $line unless /^[$w]+[$e]s?$/;
 		}
 	}
-	elsif (/Participe Présent/)
+	elsif (/Participe PrÃ©sent/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
@@ -229,42 +259,42 @@ while (<>)
 			print 'PARTPRES: ', $line unless /^[$w]+ant$/;
 		}
 	}
-	elsif (/Participe Passé/)
+	elsif (/Participe PassÃ©/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
 			my $line = $_;
 			s/\b(?:s'|se )//g;
 			s/\ben //g;
-			s/^(?:étant |ayant )//;
+			s/^(?:Ã©tant |ayant )//;
 			s/,//;
 			print 'PARTPASS: ', $line unless /^[$w]+[$e](?: [$w]+[$e]e)?$/;
 		}
 	}
-	elsif (/Infinitif Présent/)
+	elsif (/Infinitif PrÃ©sent/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
 			my $line = $_;
 			s/^(?:s'|se )//;
 			s/^en //;
-			print 'INFPRES: ', $line unless /^[$w]+(er|ir|ïr|re)$/;
+			print 'INFPRES: ', $line unless /^[$w]+(er|ir|Ã¯r|re)$/;
 		}
 	}
-	elsif (/Infinitif Passé/)
+	elsif (/Infinitif PassÃ©/)
 	{
-		while(<>)
+		while (<>)
 		{
 			last if /^$/;
 			next if /^N'existe pas/;
 			my $line = $_;
 			s/^(?:s'|se )//;
 			s/^en //;
-			s/^(?:être |avoir )//;
+			s/^(?:Ãªtre |avoir )//;
 			print 'INFPASS: ', $line unless /^[$w]+[$e]s?$/;
 		}
 	}
@@ -274,4 +304,5 @@ while (<>)
 	}
 }
 
+# vim:set fenc=utf8:
 # vi:set ts=4 sw=4:

@@ -1,5 +1,34 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
+use warnings;
 use strict;
+
+# conjuguer - french verb conjugation website
+# https://raf.org/conjuguer
+# https://github.com/raforg/conjuguer
+# https://codeberg.org/raforg/conjuguer
+#
+# Copyright (C) 2003-2007, 2023 raf <raf@raf.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+#
+# 20230408 raf <raf@raf.org>
+
+# doco2html - Convert stilly doco format into html
+# Used by ./conjuguer -W
+
+my $html_doctype = '<!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">';
+my $charset = '<meta http-equiv="Content-type" content="text/html; charset=UTF-8">';
 
 sub help
 {
@@ -16,11 +45,11 @@ sub doco2html
 	my $dst = shift;
 	my $title = shift || 'Aide';
 
-	open S, $src or die "Failed to open $src: $!\n";
-	open D, "> $dst" or die "Failed to open $dst: \n";
+	open my $S, '<', $src or die "Failed to open $src: $!\n";
+	open my $D, '>', $dst or die "Failed to open $dst: \n";
 
-	print D "<!doctype html public \"-//W3C//DTD HTML 4.0 Transitional//EN\" \"http://www.w3.org/TR/REC-html40/loose.dtd\">\n";
-	print D "<html>\n<head>\n<title>$title</title>\n</head>\n<body>\n";
+	print $D $html_doctype, "\n";
+	print $D "<html>\n<head>\n$charset\n<title>$title</title>\n</head>\n<body>\n";
 
 	my %t = ('' => '/', '/' => '');
 	my $b = '';
@@ -30,31 +59,31 @@ sub doco2html
 	my $t = 0;
 	my $l = '';
 
-	my $endp = sub { $l = 'p', $p = 0, print D "</p>\n" if $p };
-	my $endt = sub { $l = 't', $t = 0, print D "</table>\n" if $t };
+	my $endp = sub { $l = 'p', $p = 0, print $D "</p>\n" if $p };
+	my $endt = sub { $l = 't', $t = 0, print $D "</table>\n" if $t };
 	my $end = sub { &$endp(); &$endt() };
-	my $newp = sub { &$end(); $p = 1; print D "<p>\n" };
-	my $newt = sub { &$end(); $t = 1; print D "<br>\n" if $l eq 't'; print D "<table border=0 cellspacing=0 cellpadding=0>\n" };
+	my $newp = sub { &$end(); $p = 1; print $D "<p>\n" };
+	my $newt = sub { &$end(); $t = 1; print $D "<br>\n" if $l eq 't'; print $D "<table border=0 cellspacing=0 cellpadding=0>\n" };
 
-	while (<S>)
+	while (<$S>)
 	{
 		while (/\/\//) { s/\/\//<${b}b>/; $b = $t{$b} }
 		while (/\\\\/) { s/\\\\/<${i}em>/; $i = $t{$i} }
 		while (/##/) { s/##/<${c}tt>/; $c = $t{$c} }
 		if (/^$/) { &$end(); next }
-		if (/^=head/) { &$end(); $l = 'h'; s/^=head(\d) (.*)$/<h$1>$2<\/h$1>/; print D; next }
-		if (/^\t(.*)$/) { &$newt() unless $t; s/^\t//; s/\n//; $_ = "<tr valign=top><td>&nbsp;&nbsp;&nbsp;&nbsp;</td>" . join('', map { "<td align=left>$_&nbsp;</td>" } split /\t+/, $_) . "</tr>\n"; print D; next }
+		if (/^=head/) { &$end(); $l = 'h'; s/^=head(\d) (.*)$/<h$1>$2<\/h$1>/; print $D $_; next }
+		if (/^\t(.*)$/) { &$newt() unless $t; s/^\t//; s/\n//; $_ = "<tr valign=top><td>&nbsp;&nbsp;&nbsp;&nbsp;</td>" . join('', map { "<td align=left>$_&nbsp;</td>" } split /\t+/, $_) . "</tr>\n"; print $D $_; next }
 		&$newp() unless $p;
-		print D;
+		print $D $_;
 	}
 
-	&$end(); print D "</body>\n</html>\n";
+	&$end(); print $D "</body>\n</html>\n";
 
 	print STDERR "warning: unterminated <b>\n" if $b eq '/';
 	print STDERR "warning: unterminated <em>\n" if $i eq '/';
 
-	close S;
-	close D;
+	close $S;
+	close $D;
 }
 
 # vi:set ts=4 sw=4:

@@ -1,9 +1,36 @@
 #!/bin/zsh
 
-for v in `hist reverse.idx| grep -w -v 1 | awk '{print $1}'`
+# conjuguer - french verb conjugation website
+# https://raf.org/conjuguer
+# https://github.com/raforg/conjuguer
+# https://codeberg.org/raforg/conjuguer
+#
+# Copyright (C) 2003-2007, 2023 raf <raf@raf.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+#
+# 20230408 raf <raf@raf.org>
+
+# revchk2 - Show which verb forms appear multiple times in reverse.idx
+# storing the result in revchk2.out
+# usage: make reverse.idx; ./revchk2
+
+for v in `hist reverse.idx | grep -w -v 1 | awk '{print $1}'`
 do
 	echo === $v ===
 	echo === $v === >&2
-	time conjuguer -r "$v" | egrep '(Verbe|Conjugaison)' | sed -e 's/^Verbe //' -e 's/ =.*$//'
+	conjuguer -r "$v" | grep -E '(Verbe|Conjugaison)' | sed -e 's/^Verbe //' -e 's/ =.*$//'
 	echo
 done > revchk2.out
+ls -lasp revchk2.out

@@ -1,7 +1,32 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
+use warnings;
 use strict;
 
-# Print histogram of the given column in text input
+# conjuguer - french verb conjugation website
+# https://raf.org/conjuguer
+# https://github.com/raforg/conjuguer
+# https://codeberg.org/raforg/conjuguer
+#
+# Copyright (C) 2003-2007, 2023 raf <raf@raf.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+#
+# 20230408 raf <raf@raf.org>
+
+# hist - Print histogram of the given column (1st by default) in text input
+# Used by make output
+# usage: ./conjuguer | ./audit | ./hist -t
 
 use Getopt::Std;
 my %opt;
@@ -21,3 +46,5 @@ while (<>)
 
 print "$_ $hist{$_}\n" for sort keys %hist;
 print "Total $sum\n" if $do_total;
+
+# vi:set ts=4 sw=4:
